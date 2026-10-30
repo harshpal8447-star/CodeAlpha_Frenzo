@@ -1,6 +1,6 @@
 /**
  * Frenzo Database Migration Runner & Inspector
- * Manages schema evolution and execution history tracking using DATABASE_DIRECT_URL.
+ * Manages schema evolution, transactional rollbacks, checksum verification, and advisory locking.
  */
 const fs = require('fs');
 const path = require('path');
@@ -9,6 +9,8 @@ const { Client } = require('pg');
 const config = require('../config/env');
 
 const MIGRATIONS_DIR = path.resolve(__dirname, 'migrations');
+// Constant 64-bit advisory lock key dedicated to Frenzo schema migrations
+const MIGRATION_ADVISORY_LOCK_ID = 84472026;
 
 /**
  * Derives secure SSL configuration for direct/session migrations connection.
@@ -66,7 +68,7 @@ const getExecutedMigrations = async (client) => {
 };
 
 /**
- * Creates a dedicated direct client for DDL operations.
+ * Creates a dedicated direct client for DDL operations using DATABASE_DIRECT_URL.
  */
 const createDirectClient = () => {
     const connectionString = config.database.directUrl || config.database.url;
@@ -78,7 +80,7 @@ const createDirectClient = () => {
 };
 
 /**
- * Inspects migration status without mutating schema.
+ * Inspects migration status without mutating schema or executing DDL.
  */
 const inspectStatus = async () => {
     console.log('\n======================================================');
@@ -114,7 +116,15 @@ const inspectStatus = async () => {
         files.forEach((file) => {
             if (executedMap.has(file)) {
                 const info = executedMap.get(file);
-                console.log(`  ✅ [APPLIED] ${file} (Executed: ${new Date(info.executed_at).toISOString()})`);
+                const filePath = path.join(MIGRATIONS_DIR, file);
+                const currentChecksum = computeChecksum(fs.readFileSync(filePath, 'utf8'));
+                const isTampered = currentChecksum !== info.checksum;
+
+                if (isTampered) {
+                    console.log(`  ⚠️  [MODIFIED ON DISK] ${file} (Checksum mismatch!)`);
+                } else {
+                    console.log(`  ✅ [APPLIED] ${file} (Executed: ${new Date(info.executed_at).toISOString()})`);
+                }
             } else {
                 console.log(`  ⏳ [PENDING] ${file}`);
             }
@@ -130,7 +140,7 @@ const inspectStatus = async () => {
 };
 
 /**
- * Executes all pending migrations in sequential order.
+ * Executes all pending migrations in sequential order with advisory locking and checksum validation.
  */
 const runMigrations = async () => {
     console.log('\n======================================================');
@@ -150,13 +160,34 @@ const runMigrations = async () => {
     }
 
     const client = createDirectClient();
+    let lockAcquired = false;
+
     try {
         await client.connect();
+
+        // 1. Acquire PostgreSQL session-level advisory lock to prevent concurrent runners
+        await client.query('SELECT pg_advisory_lock($1);', [MIGRATION_ADVISORY_LOCK_ID]);
+        lockAcquired = true;
+
         await ensureMigrationTable(client);
         const executed = await getExecutedMigrations(client);
-        const executedSet = new Set(executed.map((m) => m.name));
+        const executedMap = new Map(executed.map((m) => [m.name, m]));
 
-        const pending = files.filter((f) => !executedSet.has(f));
+        // 2. Audit existing applied migrations against local files for integrity tampering
+        for (const [name, info] of executedMap.entries()) {
+            const filePath = path.join(MIGRATIONS_DIR, name);
+            if (fs.existsSync(filePath)) {
+                const onDiskChecksum = computeChecksum(fs.readFileSync(filePath, 'utf8'));
+                if (onDiskChecksum !== info.checksum) {
+                    throw new Error(
+                        `Integrity Error: Previously applied migration "${name}" was modified on disk! ` +
+                        `Recorded checksum: ${info.checksum}, Current checksum: ${onDiskChecksum}. Aborting.`
+                    );
+                }
+            }
+        }
+
+        const pending = files.filter((f) => !executedMap.has(f));
         if (pending.length === 0) {
             console.log('✨ All migrations are already up to date. Nothing to run.');
             console.log('======================================================\n');
@@ -165,6 +196,7 @@ const runMigrations = async () => {
 
         console.log(`Found ${pending.length} pending migration(s) to apply:\n`);
 
+        // 3. Apply each pending migration in its own isolated transaction
         for (const file of pending) {
             const filePath = path.join(MIGRATIONS_DIR, file);
             const content = fs.readFileSync(filePath, 'utf8');
@@ -172,6 +204,7 @@ const runMigrations = async () => {
 
             console.log(`Applying: ${file}...`);
             try {
+                // The runner strictly owns transaction boundaries
                 await client.query('BEGIN;');
                 await client.query(content);
                 await client.query(
@@ -184,7 +217,7 @@ const runMigrations = async () => {
                 await client.query('ROLLBACK;').catch(() => {});
                 const sanitized = err.message ? err.message.replace(/:[^:@]*@/, ':****@') : 'Migration error';
                 console.error(`\n❌ Failed to apply migration "${file}": ${sanitized}`);
-                console.error('   Transaction rolled back. No schema changes were committed.');
+                console.error('   Transaction rolled back cleanly. No schema changes were committed.');
                 process.exit(1);
             }
         }
@@ -193,9 +226,12 @@ const runMigrations = async () => {
         console.log('======================================================\n');
     } catch (err) {
         const sanitized = err.message ? err.message.replace(/:[^:@]*@/, ':****@') : 'Connection error';
-        console.error(`\n❌ Database connection failed: ${sanitized}`);
+        console.error(`\n❌ Migration execution failed: ${sanitized}`);
         process.exit(1);
     } finally {
+        if (lockAcquired) {
+            await client.query('SELECT pg_advisory_unlock($1);', [MIGRATION_ADVISORY_LOCK_ID]).catch(() => {});
+        }
         await client.end().catch(() => {});
     }
 };

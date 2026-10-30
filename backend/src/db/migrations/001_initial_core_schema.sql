@@ -7,21 +7,18 @@
 --   3. refresh_tokens
 --   4. password_reset_tokens
 --
--- Relational Invariants:
---   - Native UUID primary keys (gen_random_uuid()).
+-- Relational & Security Invariants:
+--   - Native PostgreSQL 16 UUID primary keys (gen_random_uuid()).
 --   - TIMESTAMPTZ UTC timestamps throughout.
---   - Functional unique indexes for case-insensitive email & handle lookups.
---   - Non-redundant indexes (primary keys and unique constraints already create indexes).
---   - Strict POSIX regex and range CHECK constraints.
+--   - Functional unique indexes for case-insensitive email & handle uniqueness.
+--   - Non-redundant indexes (primary keys and unique constraints already index columns).
+--   - Safe transaction ownership (this file does NOT contain BEGIN/COMMIT; runner owns transactions).
 -- ==============================================================================
-
--- Ensure pgcrypto extension is active for UUID generation (if not already enabled)
-CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 -- ------------------------------------------------------------------------------
 -- 1. USERS TABLE (Private Authentication & Lifecycle)
 -- ------------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS users (
+CREATE TABLE users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     email VARCHAR(255) NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
@@ -35,12 +32,12 @@ CREATE TABLE IF NOT EXISTS users (
 );
 
 -- Case-insensitive email uniqueness functional index
-CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email_lower ON users (LOWER(email));
+CREATE UNIQUE INDEX idx_users_email_lower ON users (LOWER(email));
 
 -- ------------------------------------------------------------------------------
 -- 2. PROFILES TABLE (Public Social Identity & Metrics)
 -- ------------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS profiles (
+CREATE TABLE profiles (
     id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
     username VARCHAR(30) NOT NULL,
     display_name VARCHAR(60) NOT NULL,
@@ -66,12 +63,12 @@ CREATE TABLE IF NOT EXISTS profiles (
 );
 
 -- Case-insensitive handle uniqueness functional index
-CREATE UNIQUE INDEX IF NOT EXISTS idx_profiles_username_lower ON profiles (LOWER(username));
+CREATE UNIQUE INDEX idx_profiles_username_lower ON profiles (LOWER(username));
 
 -- ------------------------------------------------------------------------------
 -- 3. REFRESH_TOKENS TABLE (Session Management & Token Family Rotation)
 -- ------------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS refresh_tokens (
+CREATE TABLE refresh_tokens (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     token_hash VARCHAR(64) NOT NULL,
@@ -85,15 +82,15 @@ CREATE TABLE IF NOT EXISTS refresh_tokens (
     CONSTRAINT uq_refresh_tokens_hash UNIQUE (token_hash)
 );
 
--- Non-redundant composite & partial indexes for session lifecycle
-CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user_id ON refresh_tokens (user_id);
-CREATE INDEX IF NOT EXISTS idx_refresh_tokens_family_revocation ON refresh_tokens (family_id) WHERE is_revoked = FALSE;
-CREATE INDEX IF NOT EXISTS idx_refresh_tokens_cleanup ON refresh_tokens (expires_at) WHERE is_revoked = FALSE;
+-- Non-redundant indexes supporting user queries, family revocation, and cleanup pruning
+CREATE INDEX idx_refresh_tokens_user_id ON refresh_tokens (user_id);
+CREATE INDEX idx_refresh_tokens_family_revocation ON refresh_tokens (family_id) WHERE is_revoked = FALSE;
+CREATE INDEX idx_refresh_tokens_cleanup ON refresh_tokens (expires_at);
 
 -- ------------------------------------------------------------------------------
 -- 4. PASSWORD_RESET_TOKENS TABLE (Single-Use Recovery Credentials)
 -- ------------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS password_reset_tokens (
+CREATE TABLE password_reset_tokens (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     token_hash VARCHAR(64) NOT NULL,
@@ -103,5 +100,6 @@ CREATE TABLE IF NOT EXISTS password_reset_tokens (
     CONSTRAINT uq_pwd_reset_tokens_hash UNIQUE (token_hash)
 );
 
--- Partial index for active unconsumed password reset tokens
-CREATE INDEX IF NOT EXISTS idx_pwd_reset_tokens_active ON password_reset_tokens (token_hash) WHERE used_at IS NULL;
+-- Index on user_id to support user-based reset invalidation and cascade lookups
+-- (token_hash lookup is already indexed via uq_pwd_reset_tokens_hash)
+CREATE INDEX idx_pwd_reset_tokens_user_id ON password_reset_tokens (user_id);
