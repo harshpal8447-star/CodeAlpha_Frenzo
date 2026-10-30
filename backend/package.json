@@ -9,7 +9,8 @@
     "dev": "node --watch src/server.js",
     "db:status": "node src/db/migrator.js status",
     "db:migrate": "node src/db/migrator.js up",
-    "db:check": "node src/db/verifyConnection.js"
+    "db:check": "node src/db/verifyConnection.js",
+    "test:auth": "node tests/auth.test.js"
   },
   "keywords": [
     "frenzo",
@@ -20,12 +21,14 @@
   "author": "Frenzo Team",
   "license": "ISC",
   "dependencies": {
+    "argon2": "^0.45.1",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "express-rate-limit": "^7.5.0",
     "helmet": "^8.0.0",
+    "jsonwebtoken": "^9.0.3",
     "morgan": "^1.10.0",
     "pg": "^8.23.1"
   }

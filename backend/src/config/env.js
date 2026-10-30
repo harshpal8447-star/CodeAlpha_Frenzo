@@ -42,7 +42,9 @@ const config = {
         csrfSecret: process.env.CSRF_SECRET || 'frenzo_dev_csrf_secret_must_be_set_in_production_environment_32b',
         jwtAccessSecret: process.env.JWT_ACCESS_SECRET || 'frenzo_dev_jwt_access_secret_replace_in_prod',
         jwtRefreshSecret: process.env.JWT_REFRESH_SECRET || 'frenzo_dev_jwt_refresh_secret_replace_in_prod',
-        cookieSecret: process.env.COOKIE_SECRET || 'frenzo_dev_cookie_signing_secret_replace_in_prod'
+        cookieSecret: process.env.COOKIE_SECRET || 'frenzo_dev_cookie_signing_secret_replace_in_prod',
+        jwtAccessExpiresIn: process.env.JWT_ACCESS_EXPIRES_IN || '15m',
+        jwtRefreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d'
     }
 };
 

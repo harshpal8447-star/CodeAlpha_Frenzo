@@ -117,6 +117,36 @@ const checkDatabaseConnection = async () => {
 };
 
 /**
+ * Acquires a dedicated PostgreSQL client from the pool for transaction management.
+ */
+const getClient = async () => {
+    const pool = getPool();
+    if (!pool) {
+        throw new Error('Database is not configured. Please supply DATABASE_URL in backend/.env.');
+    }
+    return await pool.connect();
+};
+
+/**
+ * Executes a callback within a managed transaction block.
+ * Guarantees COMMIT on success and ROLLBACK on error, releasing the client back to the pool.
+ */
+const withTransaction = async (callback) => {
+    const client = await getClient();
+    try {
+        await client.query('BEGIN;');
+        const result = await callback(client);
+        await client.query('COMMIT;');
+        return result;
+    } catch (err) {
+        await client.query('ROLLBACK;').catch(() => {});
+        throw err;
+    } finally {
+        client.release();
+    }
+};
+
+/**
  * Gracefully shuts down the database connection pool.
  */
 const closePool = async () => {
@@ -128,6 +158,8 @@ const closePool = async () => {
 
 module.exports = {
     getPool,
+    getClient,
+    withTransaction,
     query,
     checkDatabaseConnection,
     closePool

@@ -15,6 +15,7 @@ const notFoundHandler = require('./middleware/notFoundHandler');
 const errorHandler = require('./middleware/errorHandler');
 
 const healthRoutes = require('./routes/healthRoutes');
+const authRoutes = require('./routes/authRoutes');
 
 const app = express();
 
@@ -42,6 +43,7 @@ app.use(cookieParser());
 
 // API Routes (mounted before static assets to prevent shadowing)
 app.use(`/api/${config.apiVersion}`, healthRoutes);
+app.use(`/api/${config.apiVersion}/auth`, authRoutes);
 
 // Serve Frontend Static Assets (CSS, JS, media, public HTML)
 const frontendPath = path.resolve(__dirname, '../../frontend');
