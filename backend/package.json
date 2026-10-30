@@ -8,7 +8,8 @@
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
     "db:status": "node src/db/migrator.js status",
-    "db:migrate": "node src/db/migrator.js up"
+    "db:migrate": "node src/db/migrator.js up",
+    "db:check": "node src/db/verifyConnection.js"
   },
   "keywords": [
     "frenzo",
