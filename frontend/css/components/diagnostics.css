@@ -1,0 +1,131 @@
+/**
+ * Diagnostics & Foundation Status Card Styles
+ */
+.card-foundation {
+    background-color: var(--color-surface-white);
+    border: 1px solid var(--color-border-subtle);
+    border-radius: var(--radius-xl);
+    padding: var(--space-6);
+    box-shadow: var(--shadow-md);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-5);
+    position: relative;
+    overflow: hidden;
+}
+
+.card-foundation::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--color-primary-violet) 0%, var(--color-warm-peach) 100%);
+}
+
+.foundation-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--space-4);
+}
+
+.foundation-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-semibold);
+    padding: var(--space-1) var(--space-3);
+    border-radius: var(--radius-full);
+    background-color: var(--color-primary-violet-light);
+    color: var(--color-primary-violet);
+}
+
+.diagnostics-panel {
+    background-color: var(--color-porcelain);
+    border: 1px solid var(--color-border-subtle);
+    border-radius: var(--radius-lg);
+    padding: var(--space-4);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+}
+
+.diagnostics-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: var(--font-size-sm);
+}
+
+.diagnostics-status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-1) var(--space-3);
+    border-radius: var(--radius-full);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-semibold);
+    transition: all var(--transition-base);
+}
+
+.status-indicator-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+/* Status States */
+.status-loading {
+    background-color: var(--color-warning-light);
+    color: #B45309;
+}
+.status-loading .status-indicator-dot {
+    background-color: var(--color-warning);
+    animation: pulse 1.5s infinite;
+}
+
+.status-connected {
+    background-color: var(--color-success-light);
+    color: #065F46;
+}
+.status-connected .status-indicator-dot {
+    background-color: var(--color-success);
+    box-shadow: 0 0 6px rgba(16, 185, 129, 0.6);
+}
+
+.status-disconnected {
+    background-color: var(--color-danger-light);
+    color: #991B1B;
+}
+.status-disconnected .status-indicator-dot {
+    background-color: var(--color-danger);
+}
+
+.btn-retry {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-md);
+    background-color: var(--color-surface-white);
+    border: 1px solid var(--color-border-subtle);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-text-primary);
+    transition: all var(--transition-fast);
+}
+
+.btn-retry:hover {
+    background-color: var(--color-primary-violet);
+    color: white;
+    border-color: var(--color-primary-violet);
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(0.85); }
+}

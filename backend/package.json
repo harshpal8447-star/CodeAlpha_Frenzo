@@ -1,0 +1,28 @@
+{
+  "name": "frenzo-backend",
+  "version": "1.0.0",
+  "description": "Frenzo Social Platform REST API",
+  "main": "src/server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js"
+  },
+  "keywords": [
+    "frenzo",
+    "social",
+    "express",
+    "api"
+  ],
+  "author": "Frenzo Team",
+  "license": "ISC",
+  "dependencies": {
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.5.0",
+    "helmet": "^8.0.0",
+    "morgan": "^1.10.0"
+  }
+}

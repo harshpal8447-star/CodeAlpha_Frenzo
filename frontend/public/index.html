@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Frenzo — Where Social Meets Smart. A modern, premium, general-purpose social platform.">
+    <title>Frenzo — Where Social Meets Smart</title>
+
+    <!-- CSS Design Tokens & Architecture -->
+    <link rel="stylesheet" href="../css/tokens.css">
+    <link rel="stylesheet" href="../css/reset.css">
+    <link rel="stylesheet" href="../css/typography.css">
+    <link rel="stylesheet" href="../css/layout.css">
+    <link rel="stylesheet" href="../css/components/sidebar.css">
+    <link rel="stylesheet" href="../css/components/rail.css">
+    <link rel="stylesheet" href="../css/components/diagnostics.css">
+
+    <!-- Mobile Nav Custom Styles -->
+    <style>
+        .mobile-nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: var(--color-text-muted);
+            font-size: 11px;
+            font-weight: var(--font-weight-medium);
+            gap: 4px;
+            padding: 8px 12px;
+            border-radius: var(--radius-md);
+            transition: color var(--transition-fast);
+        }
+        .mobile-nav-item.active {
+            color: var(--color-primary-violet);
+            font-weight: var(--font-weight-bold);
+        }
+        .hero-banner {
+            background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%);
+            border-radius: var(--radius-xl);
+            padding: var(--space-8);
+            color: white;
+            position: relative;
+            overflow: hidden;
+            box-shadow: var(--shadow-lg);
+        }
+        .hero-banner::after {
+            content: '';
+            position: absolute;
+            right: -40px;
+            bottom: -40px;
+            width: 220px;
+            height: 220px;
+            background: radial-gradient(circle, rgba(99, 102, 241, 0.4) 0%, rgba(255, 138, 101, 0.1) 70%, transparent 100%);
+            border-radius: 50%;
+            pointer-events: none;
+        }
+        .token-swatch {
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+            font-size: var(--font-size-xs);
+            color: var(--color-text-secondary);
+        }
+        .color-dot {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            border: 1px solid rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Mobile Viewport Top Bar -->
+        <header class="mobile-top-bar">
+            <div class="brand-container" style="padding: 0;">
+                <div class="brand-logo-icon" style="width: 30px; height: 30px; font-size: 14px;">F</div>
+                <span class="brand-name" style="font-size: var(--font-size-lg);">Frenzo</span>
+            </div>
+            <span class="bunni-badge" style="margin: 0;">Bunni AI</span>
+        </header>
+
+        <div class="layout-grid">
+            <!-- COLUMN 1: LEFT NAVIGATION SIDEBAR (Desktop / Tablet) -->
+            <aside class="layout-sidebar" aria-label="Main Navigation">
+                <div>
+                    <!-- Brand Identity -->
+                    <a href="/" class="brand-container">
+                        <div class="brand-logo-icon">F</div>
+                        <div class="sidebar-brand-text">
+                            <span class="brand-name">Frenzo</span>
+                            <span class="brand-tagline">Where Social Meets Smart</span>
+                        </div>
+                    </a>
+
+                    <!-- Navigation Items -->
+                    <nav class="sidebar-nav">
+                        <a href="#feed" class="nav-item active" data-nav="home">
+                            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+                            <span class="nav-label">Home</span>
+                        </a>
+                        <a href="#explore" class="nav-item" data-nav="explore">
+                            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                            <span class="nav-label">Explore</span>
+                        </a>
+                        <a href="#bunni" class="nav-item nav-item-bunni" data-nav="bunni">
+                            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--color-warm-peach);"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                            <span class="nav-label font-semibold">Bunni AI</span>
+                            <span class="bunni-badge">Companion</span>
+                        </a>
+                        <a href="#notifications" class="nav-item" data-nav="notifications">
+                            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+                            <span class="nav-label">Notifications</span>
+                        </a>
+                        <a href="#profile" class="nav-item" data-nav="profile">
+                            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                            <span class="nav-label">Profile</span>
+                        </a>
+                    </nav>
+                </div>
+
+                <!-- User Profile Mini Anchor -->
+                <div class="sidebar-user">
+                    <div class="user-avatar-mini">FP</div>
+                    <div class="user-profile-meta">
+                        <span class="user-display-name">Frenzo Guest</span>
+                        <span class="user-username">@guest_explorer</span>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- COLUMN 2: CENTRAL CONTENT STREAM -->
+            <main class="layout-main" id="app-view">
+                <header class="main-header">
+                    <h2 class="h3">Phase 1 Foundation</h2>
+                    <span class="text-xs font-semibold" style="color: var(--color-primary-violet); background: var(--color-primary-violet-light); padding: 4px 10px; border-radius: var(--radius-full);">
+                        Stack Locked
+                    </span>
+                </header>
+
+                <div class="main-content">
+                    <!-- Hero Product Identity Card -->
+                    <section class="hero-banner">
+                        <span style="font-size: var(--font-size-xs); font-weight: var(--font-weight-bold); letter-spacing: 0.1em; text-transform: uppercase; color: var(--color-warm-peach);">
+                            Where Social Meets Smart
+                        </span>
+                        <h1 style="color: white; margin-top: 8px; font-size: var(--font-size-2xl);">Welcome to Frenzo</h1>
+                        <p style="color: #94A3B8; margin-top: 8px; font-size: var(--font-size-base); max-width: 480px;">
+                            A modern, general-purpose social media platform for sharing thoughts, media, and connecting with creative communities — enhanced by our friendly companion <strong>Bunni</strong>.
+                        </p>
+                    </section>
+
+                    <!-- Real-Time API Health Diagnostics Mount Point -->
+                    <section id="diagnostic-widget-mount" aria-live="polite">
+                        <!-- Rendered by js/components/Diagnostics.js -->
+                    </section>
+
+                    <!-- Architectural Highlights Card -->
+                    <section class="card-foundation">
+                        <div class="foundation-header">
+                            <div>
+                                <h3>Locked Architectural Stack</h3>
+                                <p class="text-sm text-muted">Strictly adhered to Phase 0 constraints and specifications</p>
+                            </div>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-4); margin-top: var(--space-2);">
+                            <div style="padding: var(--space-3); background: var(--color-porcelain); border-radius: var(--radius-md); border: 1px solid var(--color-border-subtle);">
+                                <span class="text-xs font-bold text-muted">FRONTEND</span>
+                                <div class="font-semibold text-sm" style="color: var(--color-midnight-navy); margin-top: 2px;">HTML5 + CSS3 + Vanilla JS</div>
+                                <div class="text-xs text-muted" style="margin-top: 4px;">Zero frameworks, native ES modules & History SPA routing.</div>
+                            </div>
+                            <div style="padding: var(--space-3); background: var(--color-porcelain); border-radius: var(--radius-md); border: 1px solid var(--color-border-subtle);">
+                                <span class="text-xs font-bold text-muted">BACKEND</span>
+                                <div class="font-semibold text-sm" style="color: var(--color-midnight-navy); margin-top: 2px;">Node.js + Express.js</div>
+                                <div class="text-xs text-muted" style="margin-top: 4px;">Helmet, strict CORS allowlist, rate limiting, and health checks.</div>
+                            </div>
+                            <div style="padding: var(--space-3); background: var(--color-porcelain); border-radius: var(--radius-md); border: 1px solid var(--color-border-subtle);">
+                                <span class="text-xs font-bold text-muted">DESIGN SYSTEM</span>
+                                <div class="font-semibold text-sm" style="color: var(--color-midnight-navy); margin-top: 2px;">Custom Design Tokens</div>
+                                <div class="text-xs text-muted" style="margin-top: 4px;">Violet, Midnight Navy, Porcelain & Warm Peach tokens.</div>
+                            </div>
+                        </div>
+
+                        <div style="margin-top: var(--space-2); padding-top: var(--space-4); border-top: 1px solid var(--color-border-subtle);">
+                            <span class="text-xs font-bold text-muted" style="display: block; margin-bottom: 8px;">PALETTE VERIFICATION:</span>
+                            <div style="display: flex; flex-wrap: wrap; gap: var(--space-4);">
+                                <div class="token-swatch">
+                                    <span class="color-dot" style="background-color: var(--color-primary-violet);"></span>
+                                    <span>Primary Violet (#6366F1)</span>
+                                </div>
+                                <div class="token-swatch">
+                                    <span class="color-dot" style="background-color: var(--color-midnight-navy);"></span>
+                                    <span>Midnight Navy (#0F172A)</span>
+                                </div>
+                                <div class="token-swatch">
+                                    <span class="color-dot" style="background-color: var(--color-porcelain);"></span>
+                                    <span>Porcelain (#F8FAFC)</span>
+                                </div>
+                                <div class="token-swatch">
+                                    <span class="color-dot" style="background-color: var(--color-warm-peach);"></span>
+                                    <span>Warm Peach (#FF8A65)</span>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+                </div>
+            </main>
+
+            <!-- COLUMN 3: RIGHT INFORMATION RAIL (Desktop) -->
+            <aside class="layout-rail" aria-label="Information and Trends">
+                <!-- Bunni Spotlight Card -->
+                <div class="rail-card">
+                    <div class="rail-card-title">
+                        <span>Meet Bunni</span>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--color-warm-peach);"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                    </div>
+                    <p class="text-sm">
+                        Bunni is Frenzo's cute, fluffy AI social companion. She helps you brainstorm posts, polish drafts, track creative goals, and stay safe.
+                    </p>
+                    <div style="display: flex; gap: var(--space-2); flex-wrap: wrap;">
+                        <span class="rail-tag-pill">Writing</span>
+                        <span class="rail-tag-pill">Draft Review</span>
+                        <span class="rail-tag-pill">Challenges</span>
+                        <span class="rail-tag-pill">Guardian</span>
+                    </div>
+                </div>
+
+                <!-- Platform Boundaries Notice -->
+                <div class="rail-card" style="background: linear-gradient(180deg, #FFFFFF 0%, var(--color-porcelain) 100%);">
+                    <span class="text-xs font-bold text-muted">PLATFORM INTEGRITY</span>
+                    <p class="text-xs text-muted" style="line-height: 1.6;">
+                        Frenzo is a dedicated consumer social media platform. Not a professional job board, recruiter dashboard, or career recruitment portal.
+                    </p>
+                </div>
+
+                <!-- Footer Navigation -->
+                <footer class="rail-footer-links">
+                    <a href="#about">About</a>
+                    <a href="#privacy">Privacy</a>
+                    <a href="#terms">Terms</a>
+                    <a href="#bunni">Bunni Guidelines</a>
+                    <span>© 2026 Frenzo</span>
+                </footer>
+            </aside>
+        </div>
+
+        <!-- MOBILE BOTTOM NAVIGATION BAR -->
+        <nav class="mobile-bottom-nav" aria-label="Mobile Navigation">
+            <a href="#feed" class="mobile-nav-item active">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+                <span>Home</span>
+            </a>
+            <a href="#explore" class="mobile-nav-item">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                <span>Explore</span>
+            </a>
+            <a href="#bunni" class="mobile-nav-item" style="color: var(--color-warm-peach);">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                <span>Bunni</span>
+            </a>
+            <a href="#notifications" class="mobile-nav-item">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+                <span>Alerts</span>
+            </a>
+            <a href="#profile" class="mobile-nav-item">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                <span>Profile</span>
+            </a>
+        </nav>
+    </div>
+
+    <!-- Frontend Entry Point (ES Module) -->
+    <script type="module" src="../js/app.js"></script>
+</body>
+</html>
