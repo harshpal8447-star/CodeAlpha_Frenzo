@@ -120,14 +120,14 @@ Canonical Health Check: **`http://localhost:5000/api/v1/health`**
 
 ### 2. Frontend Execution
 
-Because the Express backend is pre-configured with static asset hosting, you can view the application directly in your browser:
+Because the Express backend is pre-configured with static asset hosting and SPA History API routing, you can view the application directly in your browser:
 
-- **Via Express Server (Recommended):**  
-  Open: **`http://localhost:5000/public/index.html`**
+- **Via Express Server (Standard):**  
+  Open: **`http://localhost:5000/`**
 
 - **Via Independent Dev Server (Optional):**  
   If serving frontend separately on port 3000 (e.g. `npx serve frontend` or VS Code Live Server):  
-  Open: **`http://localhost:3000/public/index.html`**  
+  Open: **`http://localhost:3000/`**  
   The frontend client automatically detects the port and routes API calls to the Express backend at `http://localhost:5000/api/v1`.
 
 ---
@@ -150,13 +150,22 @@ GET /api/v1/health
 
 ---
 
-## Phase 1 Verification Status
+## Phase Status & Roadmap Alignment
 
-- [x] Project structure initialized with separated backend and frontend.
-- [x] Express backend configured with Helmet, CORS allowlist, and rate limiting.
-- [x] Canonical `GET /api/v1/health` endpoint created and verified.
+### Current Implementation (Phase 1):
+- [x] Project architecture initialized with separate backend and frontend modules.
+- [x] Express backend configured with Helmet, CORS origin allowlisting, and rate limiting.
+- [x] Canonical `GET /api/v1/health` endpoint created and verified (no DB connection).
 - [x] Vanilla HTML5/CSS3 frontend shell created with responsive 3-column layout.
-- [x] Design token system established with verified brand palette.
+- [x] Design token system established with verified brand palette (`#6366F1`, `#0F172A`, `#F8FAFC`, `#FF8A65`).
 - [x] Frontend-backend communication verified via live diagnostic widget.
 - [x] Sensitive files (`.env`, `node_modules`) excluded from version control.
 - [x] Git repository configured with remote `https://github.com/harshpal8447-star/CodeAlpha_Frenzo.git`.
+
+### Intentionally Deferred Features (Later Phases):
+- **Phase 2:** Database schemas, tables, migrations, password hashing, and user authentication.
+- **Phase 3:** User profiles, avatars, banners, and Supabase Storage integration.
+- **Phase 4:** Posts, image uploads, feeds, likes, and comments.
+- **Phase 5:** Full-text search, hashtag trends, and creator discovery.
+- **Phase 6 & 7:** Bunni AI companion (Write, Review, Discover, Goals, Guardian).
+- **Phase 8 & 9:** Notifications, security penetration testing, and production deployment.

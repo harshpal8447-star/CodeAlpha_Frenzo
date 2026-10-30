@@ -40,12 +40,13 @@ app.use(express.json({ limit: '2mb' }));
 app.use(express.urlencoded({ extended: true, limit: '2mb' }));
 app.use(cookieParser());
 
-// Serve Frontend Static Files for easy local testing
+// API Routes (mounted before static assets to prevent shadowing)
+app.use(`/api/${config.apiVersion}`, healthRoutes);
+
+// Serve Frontend Static Assets (CSS, JS, media, public HTML)
 const frontendPath = path.resolve(__dirname, '../../frontend');
 app.use(express.static(frontendPath));
-
-// API Routes
-app.use(`/api/${config.apiVersion}`, healthRoutes);
+app.use(express.static(path.resolve(frontendPath, 'public')));
 
 // Catch-all route to serve frontend/public/index.html for SPA History API routing
 app.get('*', (req, res, next) => {
@@ -53,7 +54,7 @@ app.get('*', (req, res, next) => {
     if (req.originalUrl.startsWith('/api/')) {
         return next();
     }
-    res.sendFile(path.resolve(__dirname, '../../frontend/public/index.html'));
+    res.sendFile(path.resolve(frontendPath, 'public/index.html'));
 });
 
 // 404 Handler for undefined API routes

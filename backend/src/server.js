@@ -10,7 +10,7 @@ const server = app.listen(config.port, () => {
     console.log(`🚀 Frenzo API Server running in ${config.env.toUpperCase()} mode`);
     console.log(`🌐 Server Port:      http://localhost:${config.port}`);
     console.log(`🩺 Health Endpoint:  http://localhost:${config.port}/api/${config.apiVersion}/health`);
-    console.log(`🎨 Frontend App:     http://localhost:${config.port}/public/index.html`);
+    console.log(`🎨 Frontend App:     http://localhost:${config.port}/`);
     console.log(`====================================================`);
 });
 
