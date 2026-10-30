@@ -69,9 +69,17 @@ const getExecutedMigrations = async (client) => {
 
 /**
  * Creates a dedicated direct client for DDL operations using DATABASE_DIRECT_URL.
+ * Strictly uses DATABASE_DIRECT_URL and fails fast if unconfigured. Never falls back to DATABASE_URL.
  */
 const createDirectClient = () => {
-    const connectionString = config.database.directUrl || config.database.url;
+    if (!config.database.isDirectConfigured) {
+        throw new Error(
+            'DATABASE_DIRECT_URL is missing, unconfigured, or contains template placeholders in backend/.env. ' +
+            'DDL migrations and session advisory locks require a direct connection or session pooler (Port 5432). ' +
+            'Falling back to the transaction pooler (DATABASE_URL / Port 6543) is strictly prohibited.'
+        );
+    }
+    const connectionString = config.database.directUrl;
     return new Client({
         connectionString,
         ssl: getSslConfig(connectionString),
@@ -93,14 +101,15 @@ const inspectStatus = async () => {
         return;
     }
 
-    if (!config.database.isDirectConfigured && !config.database.isConfigured) {
+    if (!config.database.isDirectConfigured) {
         console.log('ℹ️  Target database (DATABASE_DIRECT_URL) is NOT configured yet.');
-        console.log('    Placeholders detected in backend/.env. Real connection is PENDING.\n');
+        console.log('    Placeholders detected in backend/.env. Real direct connection (Port 5432) is PENDING.\n');
         console.log('Local Migration Files Discovered:');
         files.forEach((file) => {
             console.log(`  [PENDING CONFIG] ${file}`);
         });
-        console.log('\nTo connect: populate DATABASE_DIRECT_URL in backend/.env with your Supabase credentials.');
+        console.log('\nTo connect: populate DATABASE_DIRECT_URL in backend/.env with your direct Supabase connection string (Port 5432).');
+        console.log('Note: DATABASE_DIRECT_URL is strictly isolated from DATABASE_URL to protect transaction pooler stability.');
         console.log('======================================================\n');
         return;
     }
@@ -134,6 +143,7 @@ const inspectStatus = async () => {
         const sanitized = err.message ? err.message.replace(/:[^:@]*@/, ':****@') : 'Connection error';
         console.error(`❌ Migration status check failed: ${sanitized}`);
         console.log('======================================================\n');
+        process.exitCode = 1;
     } finally {
         await client.end().catch(() => {});
     }
@@ -147,10 +157,12 @@ const runMigrations = async () => {
     console.log('🚀 EXECUTING DATABASE MIGRATIONS');
     console.log('======================================================');
 
-    if (!config.database.isDirectConfigured && !config.database.isConfigured) {
-        console.error('❌ Cannot run migrations: DATABASE_DIRECT_URL is not configured in backend/.env.');
-        console.error('   Please copy your connection string from the Supabase dashboard.');
-        process.exit(1);
+    if (!config.database.isDirectConfigured) {
+        console.error('❌ Cannot run migrations: DATABASE_DIRECT_URL is missing, unconfigured, or contains template placeholders in backend/.env.');
+        console.error('   Migrations require a dedicated direct connection or session pooler (Port 5432) to support DDL operations and session-level advisory locks.');
+        console.error('   The migration runner strictly prohibits falling back to the transaction pooler (DATABASE_URL / Port 6543).');
+        process.exitCode = 1;
+        return;
     }
 
     const files = getMigrationFiles();
@@ -218,7 +230,7 @@ const runMigrations = async () => {
                 const sanitized = err.message ? err.message.replace(/:[^:@]*@/, ':****@') : 'Migration error';
                 console.error(`\n❌ Failed to apply migration "${file}": ${sanitized}`);
                 console.error('   Transaction rolled back cleanly. No schema changes were committed.');
-                process.exit(1);
+                throw err;
             }
         }
 
@@ -227,10 +239,14 @@ const runMigrations = async () => {
     } catch (err) {
         const sanitized = err.message ? err.message.replace(/:[^:@]*@/, ':****@') : 'Connection error';
         console.error(`\n❌ Migration execution failed: ${sanitized}`);
-        process.exit(1);
+        process.exitCode = 1;
     } finally {
         if (lockAcquired) {
-            await client.query('SELECT pg_advisory_unlock($1);', [MIGRATION_ADVISORY_LOCK_ID]).catch(() => {});
+            try {
+                await client.query('SELECT pg_advisory_unlock($1);', [MIGRATION_ADVISORY_LOCK_ID]);
+            } catch (unlockErr) {
+                console.error('Warning: Failed to release advisory lock explicitly:', unlockErr.message);
+            }
         }
         await client.end().catch(() => {});
     }
@@ -239,13 +255,15 @@ const runMigrations = async () => {
 // CLI Command Switchboard
 const command = process.argv[2] || 'status';
 
-if (command === 'status') {
-    inspectStatus();
-} else if (command === 'up') {
-    runMigrations();
-} else {
-    console.log(`Unknown command "${command}". Available commands: status, up`);
-    process.exit(1);
+if (require.main === module) {
+    if (command === 'status') {
+        inspectStatus();
+    } else if (command === 'up') {
+        runMigrations();
+    } else {
+        console.log(`Unknown command "${command}". Available commands: status, up`);
+        process.exit(1);
+    }
 }
 
 module.exports = {

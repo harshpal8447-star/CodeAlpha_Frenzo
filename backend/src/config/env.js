@@ -13,7 +13,7 @@ const isPlaceholder = (val) => {
 };
 
 const databaseUrl = process.env.DATABASE_URL || '';
-const databaseDirectUrl = process.env.DATABASE_DIRECT_URL || databaseUrl;
+const databaseDirectUrl = process.env.DATABASE_DIRECT_URL || '';
 
 const config = {
     env: process.env.NODE_ENV || 'development',
