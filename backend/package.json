@@ -6,7 +6,9 @@
   "type": "commonjs",
   "scripts": {
     "start": "node src/server.js",
-    "dev": "node --watch src/server.js"
+    "dev": "node --watch src/server.js",
+    "db:status": "node src/db/migrator.js status",
+    "db:migrate": "node src/db/migrator.js up"
   },
   "keywords": [
     "frenzo",
@@ -23,6 +25,7 @@
     "express": "^4.21.2",
     "express-rate-limit": "^7.5.0",
     "helmet": "^8.0.0",
-    "morgan": "^1.10.0"
+    "morgan": "^1.10.0",
+    "pg": "^8.23.1"
   }
 }

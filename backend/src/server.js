@@ -4,6 +4,7 @@
  */
 const app = require('./app');
 const config = require('./config/env');
+const { closePool } = require('./config/database');
 
 const server = app.listen(config.port, () => {
     console.log(`====================================================`);
@@ -15,8 +16,9 @@ const server = app.listen(config.port, () => {
 });
 
 // Graceful process termination
-const handleShutdown = (signal) => {
+const handleShutdown = async (signal) => {
     console.log(`\nReceived ${signal}. Shutting down gracefully...`);
+    await closePool().catch(() => {});
     server.close(() => {
         console.log('HTTP server closed.');
         process.exit(0);
