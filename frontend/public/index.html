@@ -14,6 +14,7 @@
     <link rel="stylesheet" href="/css/components/sidebar.css">
     <link rel="stylesheet" href="/css/components/rail.css">
     <link rel="stylesheet" href="/css/components/diagnostics.css">
+    <link rel="stylesheet" href="/css/components/auth.css">
 
     <!-- Mobile Nav Custom Styles -->
     <style>
@@ -112,6 +113,10 @@
                             <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
                             <span class="nav-label">Notifications</span>
                         </a>
+                        <a href="#auth" class="nav-item" data-nav="auth" id="nav-auth-item">
+                            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path><polyline points="10 17 15 12 10 7"></polyline><line x1="15" y1="12" x2="3" y2="12"></line></svg>
+                            <span class="nav-label" id="nav-auth-label">Sign In / Join</span>
+                        </a>
                         <a href="#profile" class="nav-item" data-nav="profile">
                             <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
                             <span class="nav-label">Profile</span>
@@ -120,11 +125,11 @@
                 </div>
 
                 <!-- User Profile Mini Anchor -->
-                <div class="sidebar-user">
-                    <div class="user-avatar-mini">FP</div>
+                <div class="sidebar-user" id="sidebar-user-mount">
+                    <div class="user-avatar-mini" id="sidebar-user-avatar">FP</div>
                     <div class="user-profile-meta">
-                        <span class="user-display-name">Frenzo Guest</span>
-                        <span class="user-username">@guest_explorer</span>
+                        <span class="user-display-name" id="sidebar-user-display">Frenzo Guest</span>
+                        <span class="user-username" id="sidebar-user-handle">@guest_explorer</span>
                     </div>
                 </div>
             </aside>
@@ -132,13 +137,20 @@
             <!-- COLUMN 2: CENTRAL CONTENT STREAM -->
             <main class="layout-main" id="app-view">
                 <header class="main-header">
-                    <h2 class="h3">Phase 1 Foundation</h2>
-                    <span class="text-xs font-semibold" style="color: var(--color-primary-violet); background: var(--color-primary-violet-light); padding: 4px 10px; border-radius: var(--radius-full);">
-                        Stack Locked
-                    </span>
+                    <h2 class="h3" id="main-view-title">Community Home</h2>
+                    <div id="header-auth-action" style="display: flex; align-items: center; gap: var(--space-2);">
+                        <!-- Rendered dynamically by app.js based on authStore -->
+                    </div>
                 </header>
 
                 <div class="main-content">
+                    <!-- Authentication View Mount Point (Phase 3.1) -->
+                    <section id="auth-view-mount" style="display: none;" aria-live="polite">
+                        <!-- Rendered by js/components/AuthView.js -->
+                    </section>
+
+                    <!-- Home Feed Stream Content Wrapper -->
+                    <div id="home-view-content" style="display: flex; flex-direction: column; gap: var(--space-6);">
                     <!-- Hero Product Identity Card -->
                     <section class="hero-banner">
                         <span style="font-size: var(--font-size-xs); font-weight: var(--font-weight-bold); letter-spacing: 0.1em; text-transform: uppercase; color: var(--color-warm-peach);">
@@ -204,6 +216,7 @@
                             </div>
                         </div>
                     </section>
+                    </div> <!-- #home-view-content -->
                 </div>
             </main>
 
