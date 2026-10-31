@@ -4,6 +4,7 @@
  */
 const express = require('express');
 const userController = require('../controllers/userController');
+const postController = require('../controllers/postController');
 const { authenticate, optionalAuthenticate } = require('../middleware/authMiddleware');
 const { csrfProtection } = require('../middleware/csrfMiddleware');
 
@@ -15,10 +16,13 @@ router.get('/search', optionalAuthenticate, userController.searchUsers);
 // 2. Profile Management
 router.patch('/me', authenticate, csrfProtection, userController.updateProfile);
 
-// 3. Public Profile Retrieval
+// 3. User Posts Timeline
+router.get('/:username/posts', optionalAuthenticate, postController.getUserPosts);
+
+// 4. Public Profile Retrieval
 router.get('/:username', optionalAuthenticate, userController.getProfile);
 
-// 4. Social Graph Connections (Follow / Unfollow)
+// 5. Social Graph Connections (Follow / Unfollow)
 router.post('/:username/follow', authenticate, csrfProtection, userController.followUser);
 router.delete('/:username/follow', authenticate, csrfProtection, userController.unfollowUser);
 router.post('/:username/unfollow', authenticate, csrfProtection, userController.unfollowUser);
