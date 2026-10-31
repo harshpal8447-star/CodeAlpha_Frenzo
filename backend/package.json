@@ -15,7 +15,9 @@
     "test:social": "node tests/socialProfile.test.js",
     "test:posts": "node tests/posts.test.js",
     "test:frontend-posts": "node tests/frontendPosts.test.js",
-    "test": "node tests/auth.test.js && node tests/frontendAuth.test.js && node tests/socialProfile.test.js && node tests/posts.test.js && node tests/frontendPosts.test.js"
+    "test:likes-comments": "node tests/likesComments.test.js",
+    "test:frontend-likes-comments": "node tests/frontendLikesComments.test.js",
+    "test": "node tests/auth.test.js && node tests/frontendAuth.test.js && node tests/socialProfile.test.js && node tests/posts.test.js && node tests/frontendPosts.test.js && node tests/likesComments.test.js && node tests/frontendLikesComments.test.js"
   },
   "keywords": [
     "frenzo",

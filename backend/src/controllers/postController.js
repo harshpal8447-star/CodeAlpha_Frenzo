@@ -3,6 +3,8 @@
  * Manages HTTP routing, parameter extraction, and JSON responses for posts endpoints.
  */
 const postService = require('../services/postService');
+const likeService = require('../services/likeService');
+const commentService = require('../services/commentService');
 
 /**
  * Handles POST /api/v1/posts
@@ -99,10 +101,103 @@ const getUserPosts = async (req, res, next) => {
     }
 };
 
+/**
+ * Handles POST /api/v1/posts/:id/like
+ * Likes a post for the authenticated user (idempotent).
+ */
+const likePost = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const userId = req.user.id;
+
+        const result = await likeService.likePost(id, userId);
+
+        res.status(200).json(result);
+    } catch (err) {
+        next(err);
+    }
+};
+
+/**
+ * Handles DELETE /api/v1/posts/:id/like
+ * Unlikes a post for the authenticated user (idempotent).
+ */
+const unlikePost = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const userId = req.user.id;
+
+        const result = await likeService.unlikePost(id, userId);
+
+        res.status(200).json(result);
+    } catch (err) {
+        next(err);
+    }
+};
+
+/**
+ * Handles GET /api/v1/posts/:id/likes
+ * Retrieves paginated list of users who liked a post.
+ */
+const getPostLikes = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const { page, limit } = req.query;
+        const viewerUserId = req.user ? req.user.id : null;
+
+        const result = await likeService.getPostLikes(id, { page, limit }, viewerUserId);
+
+        res.status(200).json(result);
+    } catch (err) {
+        next(err);
+    }
+};
+
+/**
+ * Handles POST /api/v1/posts/:id/comments
+ * Creates a comment on a post for the authenticated user.
+ */
+const createComment = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const userId = req.user.id;
+        const { content } = req.body;
+
+        const result = await commentService.createComment(id, userId, { content });
+
+        res.status(201).json(result);
+    } catch (err) {
+        next(err);
+    }
+};
+
+/**
+ * Handles GET /api/v1/posts/:id/comments
+ * Retrieves paginated comments on a post in deterministic chronological order.
+ */
+const getPostComments = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const { page, limit } = req.query;
+        const viewerUserId = req.user ? req.user.id : null;
+
+        const result = await commentService.getPostComments(id, { page, limit }, viewerUserId);
+
+        res.status(200).json(result);
+    } catch (err) {
+        next(err);
+    }
+};
+
 module.exports = {
     createPost,
     getPost,
     updatePost,
     deletePost,
-    getUserPosts
+    getUserPosts,
+    likePost,
+    unlikePost,
+    getPostLikes,
+    createComment,
+    getPostComments
 };

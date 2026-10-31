@@ -4,7 +4,18 @@
  * social connections, post composing, timeline rendering, editing, and soft-deletion.
  */
 import { getProfile, updateProfile, followUser, unfollowUser } from '../api/userApi.js';
-import { createPost, getUserPosts, updatePost, deletePost } from '../api/postApi.js';
+import {
+    createPost,
+    getUserPosts,
+    updatePost,
+    deletePost,
+    likePost,
+    unlikePost,
+    getPostComments,
+    createComment,
+    updateComment,
+    deleteComment
+} from '../api/postApi.js';
 import { authStore } from '../state/authStore.js';
 import { ApiError } from '../api/client.js';
 
@@ -108,6 +119,10 @@ export class ProfileView {
         // Post Delete Confirmation State
         this.deleteConfirmPostId = null;
         this.isDeleting = false;
+
+        // Likes & Comments Interaction State (Phase 3.4.4)
+        this.commentsByPost = {};
+        this.inFlightLikes = new Set();
     }
 
     async init() {
@@ -121,7 +136,7 @@ export class ProfileView {
         this.serverAlert = null;
         this.editErrors = {};
 
-        // Reset posts & composer state
+        // Reset posts, composer, and interaction state
         this.posts = [];
         this.postsLoading = true;
         this.postsError = null;
@@ -131,6 +146,8 @@ export class ProfileView {
         this.composerError = null;
         this.editingPostId = null;
         this.deleteConfirmPostId = null;
+        this.commentsByPost = {};
+        this.inFlightLikes.clear();
 
         await this.loadProfile();
     }
@@ -448,6 +465,10 @@ export class ProfileView {
         try {
             await deletePost(postId);
 
+            // Clean up interaction state for this post
+            delete this.commentsByPost[postId];
+            this.inFlightLikes.delete(postId);
+
             // Remove post from timeline list
             this.posts = this.posts.filter(p => p.id !== postId);
             this.profile.posts_count = Math.max(0, (this.profile.posts_count || 1) - 1);
@@ -480,6 +501,740 @@ export class ProfileView {
         } finally {
             this.isDeleting = false;
         }
+    }
+
+    // =========================================================================
+    // Likes & Comments Interactions Engine (Phase 3.4.4)
+    // =========================================================================
+
+    /**
+     * Retrieves or initializes comments state for a specific post.
+     * @param {string} postId
+     * @returns {object}
+     */
+    getCommentsState(postId) {
+        if (!this.commentsByPost[postId]) {
+            this.commentsByPost[postId] = {
+                comments: [],
+                pagination: null,
+                isLoading: false,
+                isLoadingMore: false,
+                error: null,
+                hasLoaded: false,
+                isExpanded: false,
+                composerText: '',
+                isSubmitting: false,
+                composerError: null,
+                editingCommentId: null,
+                editingCommentText: '',
+                editingCommentError: null,
+                isSavingEdit: false,
+                deletingCommentId: null,
+                isDeleting: false
+            };
+        }
+        return this.commentsByPost[postId];
+    }
+
+    /**
+     * Handles like/unlike toggling with debouncing, optimistic UI, and error rollback.
+     * @param {string} postId
+     */
+    async handleLikeToggle(postId) {
+        if (!authStore.state.isAuthenticated) {
+            window.location.hash = '#login';
+            return;
+        }
+
+        if (this.inFlightLikes.has(postId)) {
+            return;
+        }
+
+        const post = this.posts.find(p => p.id === postId);
+        if (!post) return;
+
+        const prevLiked = Boolean(post.liked_by_me || post.is_liked);
+        const prevCount = Number(post.likes_count || 0);
+
+        const nextLiked = !prevLiked;
+        const nextCount = prevLiked ? Math.max(0, prevCount - 1) : prevCount + 1;
+
+        // 1. Optimistic State Mutation
+        post.liked_by_me = nextLiked;
+        post.is_liked = nextLiked;
+        post.likes_count = nextCount;
+        this.inFlightLikes.add(postId);
+
+        // 2. Direct DOM Update (preserving focus and scroll position)
+        const likeBtn = this.container.querySelector(`.btn-like-post[data-post-id="${postId}"]`);
+        const countSpan = this.container.querySelector(`.like-count[data-post-id="${postId}"]`);
+        if (likeBtn) {
+            likeBtn.classList.toggle('is-liked', nextLiked);
+            likeBtn.setAttribute('aria-pressed', nextLiked ? 'true' : 'false');
+            likeBtn.setAttribute('aria-label', nextLiked ? 'Unlike post' : 'Like post');
+            const iconSvg = likeBtn.querySelector('svg');
+            if (iconSvg) {
+                iconSvg.setAttribute('fill', nextLiked ? 'currentColor' : 'none');
+            }
+        }
+        if (countSpan) {
+            countSpan.textContent = nextCount;
+        }
+
+        // 3. Dispatch API Mutation with Rollback Safety
+        try {
+            let res;
+            if (prevLiked) {
+                res = await unlikePost(postId);
+            } else {
+                res = await likePost(postId);
+            }
+
+            // Sync with authoritative server response
+            post.liked_by_me = Boolean(res.liked);
+            post.is_liked = Boolean(res.liked);
+            post.likes_count = Number(res.likes_count);
+
+            if (likeBtn) {
+                likeBtn.classList.toggle('is-liked', post.liked_by_me);
+                likeBtn.setAttribute('aria-pressed', post.liked_by_me ? 'true' : 'false');
+                likeBtn.setAttribute('aria-label', post.liked_by_me ? 'Unlike post' : 'Like post');
+                const iconSvg = likeBtn.querySelector('svg');
+                if (iconSvg) {
+                    iconSvg.setAttribute('fill', post.liked_by_me ? 'currentColor' : 'none');
+                }
+            }
+            if (countSpan) {
+                countSpan.textContent = post.likes_count;
+            }
+        } catch (err) {
+            // Rollback to prior verified state on failure
+            post.liked_by_me = prevLiked;
+            post.is_liked = prevLiked;
+            post.likes_count = prevCount;
+
+            if (likeBtn) {
+                likeBtn.classList.toggle('is-liked', prevLiked);
+                likeBtn.setAttribute('aria-pressed', prevLiked ? 'true' : 'false');
+                likeBtn.setAttribute('aria-label', prevLiked ? 'Unlike post' : 'Like post');
+                const iconSvg = likeBtn.querySelector('svg');
+                if (iconSvg) {
+                    iconSvg.setAttribute('fill', prevLiked ? 'currentColor' : 'none');
+                }
+            }
+            if (countSpan) {
+                countSpan.textContent = prevCount;
+            }
+
+            const msg = (err instanceof ApiError && err.message) || 'Failed to update like status.';
+            this.serverAlert = { type: 'danger', message: msg };
+            this.renderAlert();
+            setTimeout(() => {
+                this.serverAlert = null;
+                this.renderAlert();
+            }, 3500);
+        } finally {
+            this.inFlightLikes.delete(postId);
+        }
+    }
+
+    /**
+     * Toggles visibility of the comments drawer for a post.
+     * @param {string} postId
+     */
+    async handleToggleComments(postId) {
+        const entry = this.getCommentsState(postId);
+        entry.isExpanded = !entry.isExpanded;
+
+        const toggleBtn = this.container.querySelector(`.btn-toggle-comments[data-post-id="${postId}"]`);
+        if (toggleBtn) {
+            toggleBtn.classList.toggle('is-active', entry.isExpanded);
+            toggleBtn.setAttribute('aria-expanded', entry.isExpanded ? 'true' : 'false');
+            toggleBtn.setAttribute('aria-label', entry.isExpanded ? 'Hide comments' : 'Show comments');
+        }
+
+        const mount = this.container.querySelector(`.post-comments-mount[data-post-id="${postId}"]`);
+        if (!mount) return;
+
+        if (!entry.isExpanded) {
+            mount.style.display = 'none';
+            mount.innerHTML = '';
+            return;
+        }
+
+        mount.style.display = 'block';
+
+        if (!entry.hasLoaded && !entry.isLoading) {
+            await this.loadComments(postId, { page: 1, append: false });
+        } else {
+            this.renderCommentsSection(postId);
+        }
+    }
+
+    /**
+     * Fetches paginated comments for a post from the server.
+     * @param {string} postId
+     * @param {object} options
+     */
+    async loadComments(postId, { page = 1, append = false } = {}) {
+        const entry = this.getCommentsState(postId);
+        if (append) {
+            entry.isLoadingMore = true;
+        } else {
+            entry.isLoading = true;
+            entry.error = null;
+        }
+
+        this.renderCommentsSection(postId);
+
+        try {
+            const res = await getPostComments(postId, { page, limit: 10 });
+            if (append) {
+                entry.comments = [...entry.comments, ...res.comments];
+            } else {
+                entry.comments = res.comments;
+            }
+            entry.pagination = res.pagination;
+            entry.hasLoaded = true;
+
+            // Synchronize parent post comments count if provided
+            const post = this.posts.find(p => p.id === postId);
+            if (post && res.pagination && res.pagination.total !== undefined) {
+                post.comments_count = res.pagination.total;
+                const countSpan = this.container.querySelector(`.comment-count[data-post-id="${postId}"]`);
+                if (countSpan) {
+                    countSpan.textContent = post.comments_count;
+                }
+            }
+        } catch (err) {
+            entry.error = (err instanceof ApiError && err.message) || 'Failed to load comments.';
+        } finally {
+            entry.isLoading = false;
+            entry.isLoadingMore = false;
+            this.renderCommentsSection(postId);
+        }
+    }
+
+    /**
+     * Submits a new comment on a post.
+     * @param {string} postId
+     */
+    async handleCreateComment(postId) {
+        if (!authStore.state.isAuthenticated) {
+            window.location.hash = '#login';
+            return;
+        }
+
+        const entry = this.getCommentsState(postId);
+        if (entry.isSubmitting) return;
+
+        const trimmed = (entry.composerText || '').trim();
+        if (!trimmed) {
+            entry.composerError = 'Comment cannot be empty.';
+            this.renderCommentsSection(postId);
+            return;
+        }
+
+        if (trimmed.length > 500) {
+            entry.composerError = 'Comment cannot exceed 500 characters.';
+            this.renderCommentsSection(postId);
+            return;
+        }
+
+        entry.isSubmitting = true;
+        entry.composerError = null;
+        this.renderCommentsSection(postId);
+
+        try {
+            const res = await createComment(postId, { content: trimmed });
+
+            // Clear composer and append comment to chronological thread
+            entry.composerText = '';
+            entry.comments.push(res);
+
+            // Increment post comments count
+            const post = this.posts.find(p => p.id === postId);
+            if (post) {
+                post.comments_count = (post.comments_count || 0) + 1;
+                const countSpan = this.container.querySelector(`.comment-count[data-post-id="${postId}"]`);
+                if (countSpan) {
+                    countSpan.textContent = post.comments_count;
+                }
+            }
+            if (entry.pagination) {
+                entry.pagination.total = (entry.pagination.total || 0) + 1;
+                entry.pagination.count = entry.comments.length;
+            }
+        } catch (err) {
+            entry.composerError = (err instanceof ApiError && err.message) || 'Failed to post comment.';
+        } finally {
+            entry.isSubmitting = false;
+            this.renderCommentsSection(postId);
+        }
+    }
+
+    /**
+     * Saves an edit to an existing comment.
+     * @param {string} postId
+     * @param {string} commentId
+     * @param {string} content
+     */
+    async handleSaveCommentEdit(postId, commentId, content) {
+        const entry = this.getCommentsState(postId);
+        if (entry.isSavingEdit) return;
+
+        const trimmed = (content || '').trim();
+        if (!trimmed) {
+            entry.editingCommentError = 'Comment cannot be empty.';
+            this.renderCommentsSection(postId);
+            return;
+        }
+
+        if (trimmed.length > 500) {
+            entry.editingCommentError = 'Comment cannot exceed 500 characters.';
+            this.renderCommentsSection(postId);
+            return;
+        }
+
+        entry.isSavingEdit = true;
+        entry.editingCommentError = null;
+        this.renderCommentsSection(postId);
+
+        try {
+            const res = await updateComment(commentId, { content: trimmed });
+
+            const comment = entry.comments.find(c => c.id === commentId);
+            if (comment) {
+                comment.content = res.content;
+                comment.updated_at = res.updated_at;
+            }
+
+            entry.editingCommentId = null;
+            entry.editingCommentText = '';
+            entry.editingCommentError = null;
+        } catch (err) {
+            entry.editingCommentError = (err instanceof ApiError && err.message) || 'Failed to update comment.';
+        } finally {
+            entry.isSavingEdit = false;
+            this.renderCommentsSection(postId);
+        }
+    }
+
+    /**
+     * Executes comment soft-deletion (by author or post author moderator).
+     * @param {string} postId
+     * @param {string} commentId
+     */
+    async handleConfirmCommentDelete(postId, commentId) {
+        const entry = this.getCommentsState(postId);
+        if (entry.isDeleting) return;
+
+        entry.isDeleting = true;
+        this.renderCommentsSection(postId);
+
+        try {
+            await deleteComment(commentId);
+
+            entry.comments = entry.comments.filter(c => c.id !== commentId);
+            entry.deletingCommentId = null;
+
+            // Decrement post comments count
+            const post = this.posts.find(p => p.id === postId);
+            if (post) {
+                post.comments_count = Math.max(0, (post.comments_count || 1) - 1);
+                const countSpan = this.container.querySelector(`.comment-count[data-post-id="${postId}"]`);
+                if (countSpan) {
+                    countSpan.textContent = post.comments_count;
+                }
+            }
+            if (entry.pagination) {
+                entry.pagination.total = Math.max(0, (entry.pagination.total || 1) - 1);
+                entry.pagination.count = entry.comments.length;
+            }
+        } catch (err) {
+            entry.error = (err instanceof ApiError && err.message) || 'Failed to delete comment.';
+            entry.deletingCommentId = null;
+        } finally {
+            entry.isDeleting = false;
+            this.renderCommentsSection(postId);
+        }
+    }
+
+    /**
+     * Renders the complete inline comments drawer (composer, status, list, pagination).
+     * @param {string} postId
+     */
+    renderCommentsSection(postId) {
+        const mount = this.container.querySelector(`.post-comments-mount[data-post-id="${postId}"]`);
+        if (!mount) return;
+
+        const entry = this.getCommentsState(postId);
+        if (!entry.isExpanded) {
+            mount.style.display = 'none';
+            mount.innerHTML = '';
+            return;
+        }
+
+        mount.style.display = 'block';
+
+        const currentUser = authStore.state.user;
+        const isAuthenticated = authStore.state.isAuthenticated;
+        const viewerInitials = currentUser
+            ? (currentUser.display_name || currentUser.username || 'U').split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2)
+            : 'U';
+
+        const post = this.posts.find(p => p.id === postId);
+        const isPostAuthor = Boolean(post?.is_own_post);
+
+        const charCount = (entry.composerText || '').length;
+        const trimmed = (entry.composerText || '').trim();
+
+        let html = '<div class="post-comments-container">';
+
+        // 1. Comment Composer Card
+        if (isAuthenticated) {
+            html += `
+                <div class="comment-composer-card">
+                    <div class="comment-composer-row">
+                        <div class="comment-avatar-mini" aria-hidden="true">${escapeHtml(viewerInitials)}</div>
+                        <textarea
+                            class="comment-textarea"
+                            placeholder="Write a thoughtful comment... (up to 500 chars)"
+                            maxlength="550"
+                            rows="2"
+                            aria-label="Add a comment"
+                            data-comment-input="${postId}"
+                        >${escapeHtml(entry.composerText || '')}</textarea>
+                    </div>
+                    ${entry.composerError ? `
+                        <div class="composer-error" role="alert" style="margin-left: 38px;">
+                            ${escapeHtml(entry.composerError)}
+                        </div>
+                    ` : ''}
+                    <div class="comment-composer-footer">
+                        <span class="composer-char-count ${charCount > 500 ? 'char-exceeded' : ''}" data-comment-char-count="${postId}">
+                            ${charCount} / 500
+                        </span>
+                        <button
+                            type="button"
+                            class="btn-comment-submit"
+                            data-comment-submit="${postId}"
+                            ${entry.isSubmitting || !trimmed || charCount > 500 ? 'disabled' : ''}
+                        >
+                            ${entry.isSubmitting
+                                ? '<span class="btn-spinner" style="width: 12px; height: 12px; border-top-color: white;"></span> Submitting...'
+                                : 'Comment'}
+                        </button>
+                    </div>
+                </div>
+            `;
+        } else {
+            html += `
+                <div class="comment-composer-card" style="text-align: center; padding: var(--space-3);">
+                    <p class="text-xs text-muted">
+                        <a href="#login" style="color: var(--color-primary-violet); font-weight: var(--font-weight-semibold); text-decoration: none;">Sign in</a> to join the conversation.
+                    </p>
+                </div>
+            `;
+        }
+
+        // 2. Loading State
+        if (entry.isLoading) {
+            html += `
+                <div class="comments-loading-state">
+                    <span class="btn-spinner" style="width: 14px; height: 14px; border-top-color: var(--color-primary-violet); margin: 0 auto 6px;"></span>
+                    <p>Loading comments...</p>
+                </div>
+            `;
+        } else if (entry.error) {
+            // 3. Error State
+            html += `
+                <div class="comments-empty-state">
+                    <p style="color: var(--color-danger);">${escapeHtml(entry.error)}</p>
+                    <button type="button" class="post-action-btn btn-retry-comments" data-post-id="${postId}">Retry</button>
+                </div>
+            `;
+        } else if (entry.comments.length === 0) {
+            // 4. Empty State
+            html += `
+                <div class="comments-empty-state">
+                    <p>No comments yet. Be the first to share your thoughts!</p>
+                </div>
+            `;
+        } else {
+            // 5. Comments List
+            html += '<div class="comments-list">';
+            for (const comment of entry.comments) {
+                const author = comment.author || {
+                    username: 'unknown',
+                    display_name: 'Unknown User'
+                };
+                const cInitials = (author.display_name || author.username || 'U')
+                    .split(' ')
+                    .map(n => n[0])
+                    .join('')
+                    .toUpperCase()
+                    .substring(0, 2);
+
+                const isOwnComment = Boolean(comment.is_own_comment);
+                const canEdit = isOwnComment;
+                const canDelete = isOwnComment || isPostAuthor;
+                const isEditingThis = entry.editingCommentId === comment.id;
+                const isDeletingThis = entry.deletingCommentId === comment.id;
+                const isCommentEdited = new Date(comment.updated_at).getTime() - new Date(comment.created_at).getTime() > 2000;
+
+                const editLen = (entry.editingCommentText || '').length;
+                const editTrimmed = (entry.editingCommentText || '').trim();
+
+                html += `
+                    <div class="comment-item" id="comment-${comment.id}" data-comment-id="${comment.id}">
+                        <div class="comment-avatar-mini" aria-hidden="true">${escapeHtml(cInitials)}</div>
+                        <div class="comment-content-wrapper">
+                            <div class="comment-header">
+                                <div class="comment-author-meta">
+                                    <a href="#profile/${encodeURIComponent(author.username)}" class="comment-author-name">
+                                        ${escapeHtml(author.display_name || author.username)}
+                                    </a>
+                                    <span class="comment-author-handle">@${escapeHtml(author.username)}</span>
+                                    <span class="comment-time" title="${formatFullDate(comment.created_at)}">· ${formatRelativeTime(comment.created_at)}</span>
+                                    ${isCommentEdited ? `<span class="post-edited-indicator" title="Edited on ${formatFullDate(comment.updated_at)}">· (edited)</span>` : ''}
+                                </div>
+
+                                ${canEdit || canDelete ? `
+                                    <div class="comment-actions">
+                                        ${canEdit && !isEditingThis ? `
+                                            <button
+                                                type="button"
+                                                class="comment-action-btn btn-edit-comment"
+                                                data-comment-id="${comment.id}"
+                                                data-post-id="${postId}"
+                                                title="Edit comment"
+                                                aria-label="Edit comment"
+                                            >
+                                                Edit
+                                            </button>
+                                        ` : ''}
+                                        ${canDelete && !isDeletingThis ? `
+                                            <button
+                                                type="button"
+                                                class="comment-action-btn comment-action-btn-danger btn-delete-comment"
+                                                data-comment-id="${comment.id}"
+                                                data-post-id="${postId}"
+                                                title="Delete comment"
+                                                aria-label="Delete comment"
+                                            >
+                                                Delete
+                                            </button>
+                                        ` : ''}
+                                    </div>
+                                ` : ''}
+                            </div>
+
+                            ${isEditingThis ? `
+                                <form class="comment-edit-form" data-edit-comment-form="${comment.id}" data-post-id="${postId}">
+                                    <textarea
+                                        class="comment-textarea comment-edit-textarea"
+                                        rows="2"
+                                        maxlength="550"
+                                        aria-label="Edit comment"
+                                    >${escapeHtml(entry.editingCommentText)}</textarea>
+                                    ${entry.editingCommentError ? `
+                                        <div class="composer-error" role="alert">${escapeHtml(entry.editingCommentError)}</div>
+                                    ` : ''}
+                                    <div class="comment-edit-actions">
+                                        <span class="composer-char-count ${editLen > 500 ? 'char-exceeded' : ''}">${editLen} / 500</span>
+                                        <div style="display: flex; gap: var(--space-2);">
+                                            <button type="button" class="post-action-btn btn-cancel-comment-edit" data-comment-id="${comment.id}" data-post-id="${postId}">Cancel</button>
+                                            <button type="submit" class="btn-comment-submit" ${entry.isSavingEdit || !editTrimmed || editLen > 500 ? 'disabled' : ''}>
+                                                ${entry.isSavingEdit ? 'Saving...' : 'Save'}
+                                            </button>
+                                        </div>
+                                    </div>
+                                </form>
+                            ` : `
+                                <div class="comment-content-text" data-comment-body="${comment.id}"></div>
+                            `}
+
+                            ${isDeletingThis ? `
+                                <div class="comment-delete-confirm" role="alert">
+                                    <span>Delete this comment? This cannot be undone.</span>
+                                    <div style="display: flex; gap: var(--space-2);">
+                                        <button type="button" class="post-action-btn btn-cancel-comment-delete" data-comment-id="${comment.id}" data-post-id="${postId}">Cancel</button>
+                                        <button type="button" class="btn-delete-confirm btn-confirm-comment-delete" data-comment-id="${comment.id}" data-post-id="${postId}" ${entry.isDeleting ? 'disabled' : ''}>
+                                            ${entry.isDeleting ? 'Deleting...' : 'Delete'}
+                                        </button>
+                                    </div>
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+            }
+            html += '</div>';
+
+            // Pagination Controls
+            if (entry.pagination && entry.pagination.page < entry.pagination.total_pages) {
+                html += `
+                    <button type="button" class="btn-load-more-comments" data-post-id="${postId}" ${entry.isLoadingMore ? 'disabled' : ''}>
+                        ${entry.isLoadingMore ? 'Loading comments...' : 'Load more comments'}
+                    </button>
+                `;
+            }
+        }
+
+        html += '</div>';
+
+        mount.innerHTML = html;
+
+        // Strict XSS Defense: Content populated solely via textContent
+        mount.querySelectorAll('[data-comment-body]').forEach(el => {
+            const commentId = el.getAttribute('data-comment-body');
+            const comm = entry.comments.find(c => c.id === commentId);
+            if (comm) {
+                el.textContent = comm.content;
+            }
+        });
+
+        this.bindCommentEvents(postId, mount);
+    }
+
+    /**
+     * Binds all DOM interaction events inside a post's comments drawer.
+     * @param {string} postId
+     * @param {HTMLElement} mount
+     */
+    bindCommentEvents(postId, mount) {
+        const entry = this.getCommentsState(postId);
+
+        // Comment composer textarea
+        const textarea = mount.querySelector(`[data-comment-input="${postId}"]`);
+        const charCountEl = mount.querySelector(`[data-comment-char-count="${postId}"]`);
+        const submitBtn = mount.querySelector(`[data-comment-submit="${postId}"]`);
+
+        if (textarea) {
+            textarea.addEventListener('input', () => {
+                const val = textarea.value;
+                entry.composerText = val;
+                const len = val.length;
+                const trimmed = val.trim();
+
+                if (charCountEl) {
+                    charCountEl.textContent = `${len} / 500`;
+                    charCountEl.className = 'composer-char-count' + (len > 500 ? ' char-exceeded' : '');
+                }
+
+                if (submitBtn) {
+                    submitBtn.disabled = !trimmed || len > 500 || entry.isSubmitting;
+                }
+            });
+        }
+
+        // Comment composer submit button
+        if (submitBtn) {
+            submitBtn.addEventListener('click', () => {
+                this.handleCreateComment(postId);
+            });
+        }
+
+        // Retry comments button
+        const retryBtn = mount.querySelector('.btn-retry-comments');
+        if (retryBtn) {
+            retryBtn.addEventListener('click', () => {
+                this.loadComments(postId, { page: 1, append: false });
+            });
+        }
+
+        // Load more comments button
+        const loadMoreBtn = mount.querySelector('.btn-load-more-comments');
+        if (loadMoreBtn) {
+            loadMoreBtn.addEventListener('click', () => {
+                if (entry.pagination && entry.pagination.page < entry.pagination.total_pages) {
+                    this.loadComments(postId, { page: entry.pagination.page + 1, append: true });
+                }
+            });
+        }
+
+        // Edit comment trigger
+        mount.querySelectorAll('.btn-edit-comment').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const commentId = btn.getAttribute('data-comment-id');
+                const comment = entry.comments.find(c => c.id === commentId);
+                if (comment) {
+                    entry.editingCommentId = commentId;
+                    entry.editingCommentText = comment.content;
+                    entry.editingCommentError = null;
+                    entry.deletingCommentId = null;
+                    this.renderCommentsSection(postId);
+                }
+            });
+        });
+
+        // Cancel comment edit
+        mount.querySelectorAll('.btn-cancel-comment-edit').forEach(btn => {
+            btn.addEventListener('click', () => {
+                entry.editingCommentId = null;
+                entry.editingCommentText = '';
+                entry.editingCommentError = null;
+                this.renderCommentsSection(postId);
+            });
+        });
+
+        // Save comment edit form
+        mount.querySelectorAll('.comment-edit-form').forEach(form => {
+            const commentId = form.getAttribute('data-edit-comment-form');
+            const editTextarea = form.querySelector('.comment-edit-textarea');
+            const editCharCount = form.querySelector('.composer-char-count');
+            const editSaveBtn = form.querySelector('button[type="submit"]');
+
+            if (editTextarea) {
+                editTextarea.addEventListener('input', () => {
+                    const val = editTextarea.value;
+                    entry.editingCommentText = val;
+                    const len = val.length;
+                    const trimmed = val.trim();
+
+                    if (editCharCount) {
+                        editCharCount.textContent = `${len} / 500`;
+                        editCharCount.className = 'composer-char-count' + (len > 500 ? ' char-exceeded' : '');
+                    }
+
+                    if (editSaveBtn) {
+                        editSaveBtn.disabled = !trimmed || len > 500 || entry.isSavingEdit;
+                    }
+                });
+            }
+
+            form.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.handleSaveCommentEdit(postId, commentId, editTextarea ? editTextarea.value : '');
+            });
+        });
+
+        // Delete comment trigger
+        mount.querySelectorAll('.btn-delete-comment').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const commentId = btn.getAttribute('data-comment-id');
+                entry.deletingCommentId = commentId;
+                entry.editingCommentId = null;
+                this.renderCommentsSection(postId);
+            });
+        });
+
+        // Cancel comment delete
+        mount.querySelectorAll('.btn-cancel-comment-delete').forEach(btn => {
+            btn.addEventListener('click', () => {
+                entry.deletingCommentId = null;
+                this.renderCommentsSection(postId);
+            });
+        });
+
+        // Confirm comment delete
+        mount.querySelectorAll('.btn-confirm-comment-delete').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const commentId = btn.getAttribute('data-comment-id');
+                this.handleConfirmCommentDelete(postId, commentId);
+            });
+        });
     }
 
     // =========================================================================
@@ -884,6 +1639,11 @@ export class ProfileView {
             const isEditing = this.editingPostId === post.id;
             const isDeleting = this.deleteConfirmPostId === post.id;
             const isEdited = new Date(post.updated_at).getTime() - new Date(post.created_at).getTime() > 2000;
+            const isLiked = Boolean(post.liked_by_me || post.is_liked);
+            const likesCount = Number(post.likes_count || 0);
+            const commentsCount = Number(post.comments_count || 0);
+            const commentsState = this.commentsByPost[post.id];
+            const isCommentsExpanded = Boolean(commentsState?.isExpanded);
 
             if (isEditing) {
                 // Post in Edit Mode
@@ -988,6 +1748,40 @@ export class ProfileView {
                             <p class="post-content-text" data-post-body="${post.id}"></p>
                         </div>
 
+                        <!-- Post Footer: Likes & Comments Interactions -->
+                        <div class="post-footer">
+                            <div class="post-interactions-row">
+                                <button
+                                    type="button"
+                                    class="post-interaction-btn btn-like-post ${isLiked ? 'is-liked' : ''}"
+                                    data-post-id="${post.id}"
+                                    aria-label="${isLiked ? 'Unlike post' : 'Like post'}"
+                                    aria-pressed="${isLiked ? 'true' : 'false'}"
+                                >
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="${isLiked ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+                                    </svg>
+                                    <span class="interaction-count like-count" data-post-id="${post.id}">${likesCount}</span>
+                                </button>
+
+                                <button
+                                    type="button"
+                                    class="post-interaction-btn btn-toggle-comments ${isCommentsExpanded ? 'is-active' : ''}"
+                                    data-post-id="${post.id}"
+                                    aria-label="${isCommentsExpanded ? 'Hide comments' : 'Show comments'}"
+                                    aria-expanded="${isCommentsExpanded ? 'true' : 'false'}"
+                                >
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                        <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
+                                    </svg>
+                                    <span class="interaction-count comment-count" data-post-id="${post.id}">${commentsCount}</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Inline Comments Mount -->
+                        <div class="post-comments-mount" data-post-id="${post.id}" style="${isCommentsExpanded ? '' : 'display: none;'}"></div>
+
                         <!-- Inline Delete Confirmation Prompt -->
                         ${isDeleting ? `
                             <div class="delete-confirm-box" id="delete-box-${post.id}" role="alert">
@@ -1042,6 +1836,13 @@ export class ProfileView {
             const post = this.posts.find(p => p.id === id);
             if (post) {
                 el.textContent = post.content;
+            }
+        });
+
+        // Render any active comments drawers
+        this.posts.forEach(post => {
+            if (this.commentsByPost[post.id]?.isExpanded) {
+                this.renderCommentsSection(post.id);
             }
         });
 
@@ -1120,6 +1921,28 @@ export class ProfileView {
     bindTimelineEvents() {
         const mount = this.container.querySelector('#timeline-stream-mount');
         if (!mount) return;
+
+        // Like Post Button -> Toggle Like with Debounce & Optimistic UI
+        mount.querySelectorAll('.btn-like-post').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                const postId = btn.getAttribute('data-post-id');
+                if (postId) {
+                    this.handleLikeToggle(postId);
+                }
+            });
+        });
+
+        // Toggle Comments Drawer Button
+        mount.querySelectorAll('.btn-toggle-comments').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                const postId = btn.getAttribute('data-post-id');
+                if (postId) {
+                    this.handleToggleComments(postId);
+                }
+            });
+        });
 
         // Edit Post Button -> Toggle Edit Mode
         mount.querySelectorAll('.btn-edit-post').forEach(btn => {

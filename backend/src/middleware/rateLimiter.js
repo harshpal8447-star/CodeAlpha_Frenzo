@@ -31,7 +31,35 @@ const postRateLimiter = rateLimit({
     }
 });
 
+const likeRateLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15-minute window
+    max: config.env === 'test' ? 10000 : 300,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: {
+        error: {
+            code: 'LIKE_RATE_LIMIT_EXCEEDED',
+            message: 'Too many like requests. Please wait a few moments.'
+        }
+    }
+});
+
+const commentRateLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15-minute window
+    max: config.env === 'test' ? 10000 : 120,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: {
+        error: {
+            code: 'COMMENT_RATE_LIMIT_EXCEEDED',
+            message: 'Too many comments created. Please wait a few moments.'
+        }
+    }
+});
+
 module.exports = {
     globalRateLimiter,
-    postRateLimiter
+    postRateLimiter,
+    likeRateLimiter,
+    commentRateLimiter
 };

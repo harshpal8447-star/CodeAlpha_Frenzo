@@ -70,6 +70,9 @@ const createPost = async (userId, { content }) => {
             user_id: postRow.user_id,
             content: postRow.content,
             media_urls: postRow.media_urls,
+            likes_count: 0,
+            comments_count: 0,
+            liked_by_me: false,
             created_at: postRow.created_at,
             updated_at: postRow.updated_at,
             author: {
@@ -86,14 +89,22 @@ const createPost = async (userId, { content }) => {
 /**
  * Retrieves a single post by ID.
  * Enforces author profile privacy rules for guests and non-followers.
+ * Computes liked_by_me and returns interaction counters.
  */
 const getPostById = async (postId, viewerUserId = null) => {
     validatePostId(postId);
 
     const postSql = `
-        SELECT 
-            p.id, p.user_id, p.content, p.media_urls, p.created_at, p.updated_at,
-            pr.username, pr.display_name, pr.avatar_url, pr.is_private, u.is_active
+        SELECT
+            p.id, p.user_id, p.content, p.media_urls, p.likes_count, p.comments_count,
+            p.created_at, p.updated_at,
+            pr.username, pr.display_name, pr.avatar_url, pr.is_private, u.is_active,
+            CASE
+                WHEN $2::uuid IS NOT NULL THEN EXISTS (
+                    SELECT 1 FROM post_likes pl WHERE pl.post_id = p.id AND pl.user_id = $2
+                )
+                ELSE false
+            END AS liked_by_me
         FROM posts p
         JOIN profiles pr ON pr.id = p.user_id
         JOIN users u ON u.id = p.user_id
@@ -101,7 +112,7 @@ const getPostById = async (postId, viewerUserId = null) => {
         LIMIT 1;
     `;
 
-    const res = await query(postSql, [postId]);
+    const res = await query(postSql, [postId, viewerUserId]);
     const row = res.rows[0];
 
     if (!row || !row.is_active) {
@@ -131,6 +142,9 @@ const getPostById = async (postId, viewerUserId = null) => {
         user_id: row.user_id,
         content: row.content,
         media_urls: row.media_urls,
+        likes_count: row.likes_count,
+        comments_count: row.comments_count,
+        liked_by_me: Boolean(row.liked_by_me),
         created_at: row.created_at,
         updated_at: row.updated_at,
         author: {
@@ -172,13 +186,19 @@ const updatePost = async (postId, userId, { content }) => {
         UPDATE posts
         SET content = $1, updated_at = NOW()
         WHERE id = $2 AND user_id = $3 AND deleted_at IS NULL
-        RETURNING id, user_id, content, media_urls, created_at, updated_at;
+        RETURNING id, user_id, content, media_urls, likes_count, comments_count, created_at, updated_at;
     `;
     const updateRes = await query(updateSql, [trimmedContent, postId, userId]);
     if (updateRes.rows.length === 0) {
         throw new AppError('POST_NOT_FOUND', 'Post not found.', 404);
     }
     const updatedRow = updateRes.rows[0];
+
+    // Check if author liked their own post
+    const likeCheck = await query(
+        'SELECT 1 FROM post_likes WHERE post_id = $1 AND user_id = $2 LIMIT 1;',
+        [postId, userId]
+    );
 
     // Fetch author metadata
     const profileRes = await query(
@@ -192,6 +212,9 @@ const updatePost = async (postId, userId, { content }) => {
         user_id: updatedRow.user_id,
         content: updatedRow.content,
         media_urls: updatedRow.media_urls,
+        likes_count: updatedRow.likes_count,
+        comments_count: updatedRow.comments_count,
+        liked_by_me: likeCheck.rows.length > 0,
         created_at: updatedRow.created_at,
         updated_at: updatedRow.updated_at,
         author: {
@@ -328,13 +351,21 @@ const getUserPosts = async (username, { page = 1, limit = 20 } = {}, viewerUserI
 
     // Query active posts page using deterministic timeline index (idx_posts_user_timeline)
     const postsSql = `
-        SELECT id, user_id, content, media_urls, created_at, updated_at
-        FROM posts
-        WHERE user_id = $1 AND deleted_at IS NULL
-        ORDER BY created_at DESC, id DESC
+        SELECT
+            p.id, p.user_id, p.content, p.media_urls, p.likes_count, p.comments_count,
+            p.created_at, p.updated_at,
+            CASE
+                WHEN $4::uuid IS NOT NULL THEN EXISTS (
+                    SELECT 1 FROM post_likes pl WHERE pl.post_id = p.id AND pl.user_id = $4
+                )
+                ELSE false
+            END AS liked_by_me
+        FROM posts p
+        WHERE p.user_id = $1 AND p.deleted_at IS NULL
+        ORDER BY p.created_at DESC, p.id DESC
         LIMIT $2 OFFSET $3;
     `;
-    const postsRes = await query(postsSql, [targetUser.id, parsedLimit, offset]);
+    const postsRes = await query(postsSql, [targetUser.id, parsedLimit, offset, viewerUserId]);
 
     const authorObj = {
         id: targetUser.id,
@@ -348,6 +379,9 @@ const getUserPosts = async (username, { page = 1, limit = 20 } = {}, viewerUserI
         user_id: post.user_id,
         content: post.content,
         media_urls: post.media_urls,
+        likes_count: post.likes_count,
+        comments_count: post.comments_count,
+        liked_by_me: Boolean(post.liked_by_me),
         created_at: post.created_at,
         updated_at: post.updated_at,
         author: authorObj,
