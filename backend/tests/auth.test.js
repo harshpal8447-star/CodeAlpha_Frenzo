@@ -167,6 +167,58 @@ const runTests = async () => {
         assert(csrfRes.status === 200 && csrfRes.body?.csrfToken && client1.cookies['frenzo_csrf_token'],
             'Issues signed CSRF cookie and raw token via GET /csrf');
         const validCsrfToken = csrfRes.body.csrfToken;
+        const validSignedCookie = client1.cookies['frenzo_csrf_token'];
+
+        // 1.4 Reusing existing valid CSRF cookie on GET /csrf returns same token without regenerating
+        const reuseCsrfRes = await client1.request('/api/v1/auth/csrf');
+        assert(reuseCsrfRes.status === 200 && reuseCsrfRes.body?.csrfToken === validCsrfToken,
+            'Reuses valid existing CSRF token and cookie on subsequent GET /csrf');
+
+        // 1.5 Malformed CSRF cookie on GET /csrf triggers safe regeneration of fresh signed cookie
+        const malformedClient = new TestClient();
+        malformedClient.cookies['frenzo_csrf_token'] = 'malformed_token_without_period_separator';
+        const malformedCsrfRes = await malformedClient.request('/api/v1/auth/csrf');
+        assert(
+            malformedCsrfRes.status === 200 &&
+            malformedCsrfRes.body?.csrfToken &&
+            malformedClient.cookies['frenzo_csrf_token'] !== 'malformed_token_without_period_separator' &&
+            malformedClient.cookies['frenzo_csrf_token'].includes('.'),
+            'Detects malformed CSRF cookie on GET /csrf and regenerates a valid signed cookie'
+        );
+
+        // 1.6 Tampered CSRF cookie on GET /csrf triggers regeneration due to HMAC mismatch
+        const tamperedClient = new TestClient();
+        const fakeSig = crypto.randomBytes(32).toString('hex');
+        tamperedClient.cookies['frenzo_csrf_token'] = `${validCsrfToken}.${fakeSig}`;
+        const tamperedCsrfRes = await tamperedClient.request('/api/v1/auth/csrf');
+        assert(
+            tamperedCsrfRes.status === 200 &&
+            tamperedCsrfRes.body?.csrfToken &&
+            tamperedClient.cookies['frenzo_csrf_token'] !== `${validCsrfToken}.${fakeSig}`,
+            'Detects tampered HMAC signature on GET /csrf and regenerates a fresh signed cookie'
+        );
+
+        // 1.7 Mutation rejection with malformed CSRF cookie (403)
+        const malformedMutationClient = new TestClient();
+        malformedMutationClient.cookies['frenzo_csrf_token'] = 'invalid_cookie_format';
+        const malformedMutRes = await malformedMutationClient.request('/api/v1/auth/register', {
+            method: 'POST',
+            headers: { 'x-csrf-token': 'any_token' },
+            body: USER_1
+        });
+        assert(malformedMutRes.status === 403 && malformedMutRes.body?.error?.code === 'CSRF_VERIFICATION_FAILED',
+            'Rejects mutation when CSRF cookie is malformed (403 CSRF_VERIFICATION_FAILED)');
+
+        // 1.8 Mutation rejection with tampered CSRF cookie (403)
+        const tamperedMutationClient = new TestClient();
+        tamperedMutationClient.cookies['frenzo_csrf_token'] = `${validCsrfToken}.deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef`;
+        const tamperedMutRes = await tamperedMutationClient.request('/api/v1/auth/register', {
+            method: 'POST',
+            headers: { 'x-csrf-token': validCsrfToken },
+            body: USER_1
+        });
+        assert(tamperedMutRes.status === 403 && tamperedMutRes.body?.error?.code === 'CSRF_VERIFICATION_FAILED',
+            'Rejects mutation when CSRF cookie HMAC signature is tampered (403 CSRF_VERIFICATION_FAILED)');
 
         console.log('');
 
@@ -458,6 +510,24 @@ const runTests = async () => {
         const healthRes = await client1.request('/api/v1/health');
         assert(healthRes.status === 200 && healthRes.body?.status === 'ok',
             'Confirms GET /api/v1/health continues to return HTTP 200 OK');
+
+        console.log('');
+
+        // -------------------------------------------------------------
+        // TEST 11: CORS Error Code & Information Disclosure Defense (SEC-02)
+        // -------------------------------------------------------------
+        console.log('1️⃣1️⃣ Testing CORS Error Code & Information Disclosure Defense...');
+        const corsClient = new TestClient();
+        const unauthorizedOrigin = 'https://malicious-cross-origin.attacker.com';
+        const corsBlockedRes = await corsClient.request('/api/v1/auth/csrf', {
+            headers: { 'origin': unauthorizedOrigin }
+        });
+        assert(corsBlockedRes.status === 403,
+            'Blocks unauthorized Origin with HTTP 403 Forbidden');
+        assert(corsBlockedRes.body?.error?.code === 'CORS_BLOCKED',
+            'Returns consistent error code CORS_BLOCKED for rejected cross-origin requests');
+        assert(corsBlockedRes.body?.error?.message?.includes('CORS blocked') && !corsBlockedRes.body?.error?.stack && !corsBlockedRes.body?.error?.details,
+            'Does not expose internal stack traces or details in CORS rejection payload');
 
         console.log('\n======================================================');
         console.log(`📊 TEST SUITE SUMMARY: ${passed} PASSED, ${failed} FAILED`);

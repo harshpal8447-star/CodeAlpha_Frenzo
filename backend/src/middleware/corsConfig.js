@@ -17,6 +17,7 @@ const corsOptions = {
 
         const error = new Error(`CORS blocked: Origin ${origin} is not allowed by policy.`);
         error.status = 403;
+        error.code = 'CORS_BLOCKED';
         return callback(error, false);
     },
     credentials: true,

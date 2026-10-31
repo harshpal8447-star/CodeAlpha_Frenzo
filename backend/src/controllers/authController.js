@@ -4,7 +4,7 @@
  */
 const authService = require('../services/authService');
 const { COOKIE_NAMES, setAuthCookies, clearAuthCookies, setCsrfCookie } = require('../utils/cookieHelper');
-const { generateCsrfToken } = require('../utils/crypto');
+const { generateCsrfToken, verifyCsrfToken } = require('../utils/crypto');
 
 /**
  * Handles new user registration.
@@ -135,14 +135,20 @@ const me = async (req, res, next) => {
 
 /**
  * Provides a fresh CSRF token and sets the signed cookie.
+ * Validates any existing CSRF cookie before reusing it; regenerates if invalid or tampered.
  */
 const getCsrfToken = (req, res) => {
     const existing = req.cookies[COOKIE_NAMES.CSRF_TOKEN];
     let rawToken;
 
-    if (existing && existing.includes('.')) {
-        rawToken = existing.split('.')[0];
-    } else {
+    if (existing && typeof existing === 'string' && existing.includes('.')) {
+        const candidateRaw = existing.split('.')[0];
+        if (verifyCsrfToken(candidateRaw, existing)) {
+            rawToken = candidateRaw;
+        }
+    }
+
+    if (!rawToken) {
         const generated = generateCsrfToken();
         rawToken = generated.rawToken;
         setCsrfCookie(res, generated.signedCookieValue);
