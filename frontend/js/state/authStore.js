@@ -4,6 +4,7 @@
  * Notifies subscribed UI components upon state transitions.
  */
 import { getCurrentUser, logout as apiLogout } from '../api/authApi.js';
+import { setSessionExpiredHandler } from '../api/client.js';
 
 class AuthStore {
     constructor() {
@@ -13,6 +14,11 @@ class AuthStore {
             isLoading: true
         };
         this.listeners = new Set();
+
+        // Automatically clear in-memory credentials if session refresh fails
+        setSessionExpiredHandler(() => {
+            this.clearUser();
+        });
     }
 
     /**

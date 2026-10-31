@@ -1,0 +1,174 @@
+/**
+ * Frenzo User Discovery & Explore Styles (Phase 3.2)
+ * Clean, fast, and responsive user discovery matching the Frenzo design system.
+ */
+
+.explore-container {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    width: 100%;
+    max-width: 720px;
+    margin: 0 auto;
+}
+
+/* Search Bar Input */
+.search-box-card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border-subtle);
+    border-radius: var(--radius-xl);
+    padding: var(--space-4);
+    box-shadow: 0 4px 16px rgba(15, 23, 42, 0.04);
+}
+
+.search-input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 100%;
+}
+
+.search-icon {
+    position: absolute;
+    left: 14px;
+    color: var(--color-text-muted);
+    pointer-events: none;
+}
+
+.search-input {
+    width: 100%;
+    height: 44px;
+    padding: 0 42px 0 44px;
+    font-size: var(--font-size-base);
+    color: var(--color-text-main);
+    background: var(--color-porcelain);
+    border: 1px solid var(--color-border-subtle);
+    border-radius: var(--radius-full);
+    outline: none;
+    transition: all 180ms ease-in-out;
+}
+
+.search-input:focus {
+    border-color: var(--color-primary-violet);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+    background: var(--color-surface);
+}
+
+.search-clear-btn {
+    position: absolute;
+    right: 12px;
+    background: none;
+    border: none;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-full);
+    transition: color 150ms;
+}
+.search-clear-btn:hover {
+    color: var(--color-midnight-navy);
+}
+
+/* Results Section */
+.search-results-section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+.search-results-header {
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-bold);
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 0 var(--space-2);
+}
+
+/* User Card in Search */
+.search-user-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-3) var(--space-4);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border-subtle);
+    border-radius: var(--radius-lg);
+    transition: all 150ms ease-in-out;
+    text-decoration: none;
+    color: inherit;
+    gap: var(--space-3);
+}
+
+.search-user-card:hover {
+    border-color: #CBD5E1;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04);
+}
+
+.search-user-info {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    min-width: 0;
+    flex: 1;
+}
+
+.search-user-avatar {
+    width: 44px;
+    height: 44px;
+    border-radius: var(--radius-full);
+    background: linear-gradient(135deg, var(--color-primary-violet) 0%, var(--color-midnight-navy) 100%);
+    color: white;
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-bold);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.search-user-meta {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.search-user-name {
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-bold);
+    color: var(--color-text-main);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.search-user-handle {
+    font-size: var(--font-size-xs);
+    color: var(--color-text-muted);
+}
+
+.search-user-bio {
+    font-size: var(--font-size-xs);
+    color: var(--color-text-secondary);
+    margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Empty Search Prompts */
+.explore-empty-state {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border-subtle);
+    border-radius: var(--radius-xl);
+    padding: var(--space-10) var(--space-6);
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-2);
+}

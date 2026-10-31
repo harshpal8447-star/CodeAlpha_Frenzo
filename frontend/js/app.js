@@ -1,14 +1,17 @@
 /**
  * Frenzo Frontend Application Entry Point
  * Initializes responsive layout, SPA view router, auth store, and UI state synchronization.
+ * Supports: #feed, #login, #register, #auth, #profile (and #profile/:username), and #explore.
  */
 import { DiagnosticsComponent } from './components/Diagnostics.js';
 import { AuthView } from './components/AuthView.js';
+import { ProfileView } from './components/ProfileView.js';
+import { ExploreView } from './components/ExploreView.js';
 import { authStore } from './state/authStore.js';
 import { API_CONFIG } from './api/config.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
-    console.log('🚀 Frenzo Client Initialized — Phase 3.1 Authentication UI');
+    console.log('🚀 Frenzo Client Initialized — Phase 3.2 Profiles & Social Connections');
     console.log(`📡 Connecting to API Gateway: ${API_CONFIG.BASE_URL}`);
 
     // 1. Initialize System Diagnostic Component
@@ -20,6 +23,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // 2. DOM Elements
     const authViewMount = document.getElementById('auth-view-mount');
+    const profileViewMount = document.getElementById('profile-view-mount');
+    const exploreViewMount = document.getElementById('explore-view-mount');
     const homeViewContent = document.getElementById('home-view-content');
     const mainViewTitle = document.getElementById('main-view-title');
     const headerAuthAction = document.getElementById('header-auth-action');
@@ -27,49 +32,112 @@ document.addEventListener('DOMContentLoaded', async () => {
     const navAuthItem = document.getElementById('nav-auth-item');
     const navAuthLabel = document.getElementById('nav-auth-label');
 
-    // 3. Initialize AuthView Component
+    // 3. Initialize Components
     let authView = null;
     if (authViewMount) {
         authView = new AuthView(authViewMount, {
             initialMode: window.location.hash === '#register' ? 'register' : 'login',
             onAuthSuccess: (user) => {
                 console.log(`Auth success: Logged in as @${user.username}`);
-                // Navigate back to home feed smoothly after brief success banner
                 setTimeout(() => {
-                    window.location.hash = '#feed';
+                    window.location.hash = `#profile/${user.username}`;
                 }, 750);
             }
         });
         authView.init();
     }
 
-    // 4. View Routing Switchboard (Supports #feed, #login, #register, #auth)
-    const handleRoute = () => {
-        const hash = window.location.hash || '#feed';
-        const isAuthRoute = hash === '#login' || hash === '#register' || hash === '#auth';
+    let profileView = null;
+    if (profileViewMount) {
+        profileView = new ProfileView(profileViewMount, {
+            onNavigate: (route) => {
+                window.location.hash = route;
+            }
+        });
+    }
 
-        // Update navigation active states
+    let exploreView = null;
+    if (exploreViewMount) {
+        exploreView = new ExploreView(exploreViewMount, {
+            onSelectUser: (user) => {
+                window.location.hash = `#profile/${user.username}`;
+            }
+        });
+        exploreView.init();
+    }
+
+    // Helper to hide all main view sections
+    const hideAllViews = () => {
+        if (authViewMount) authViewMount.style.display = 'none';
+        if (profileViewMount) profileViewMount.style.display = 'none';
+        if (exploreViewMount) exploreViewMount.style.display = 'none';
+        if (homeViewContent) homeViewContent.style.display = 'none';
+    };
+
+    // 4. View Routing Switchboard
+    const handleRoute = async () => {
+        const rawHash = window.location.hash || '#feed';
+        const parts = rawHash.split('/');
+        const primaryRoute = parts[0];
+        const routeParam = parts[1] ? decodeURIComponent(parts[1]) : null;
+
+        // Reset active nav item highlights
         const allNavItems = document.querySelectorAll('.nav-item');
         allNavItems.forEach(item => item.classList.remove('active'));
 
-        if (isAuthRoute) {
+        hideAllViews();
+
+        if (primaryRoute === '#login' || primaryRoute === '#register' || primaryRoute === '#auth') {
+            // Authentication Route
             if (navAuthItem) navAuthItem.classList.add('active');
-
             if (authViewMount) authViewMount.style.display = 'block';
-            if (homeViewContent) homeViewContent.style.display = 'none';
 
-            const mode = hash === '#register' ? 'register' : 'login';
+            const mode = primaryRoute === '#register' ? 'register' : 'login';
             if (authView) authView.setMode(mode);
 
             if (mainViewTitle) {
                 mainViewTitle.textContent = mode === 'register' ? 'Create an Account' : 'Welcome Back';
             }
+        } else if (primaryRoute === '#profile') {
+            // User Profile Route
+            const profileNavItem = document.querySelector('[data-nav="profile"]');
+            if (profileNavItem) profileNavItem.classList.add('active');
+
+            if (profileViewMount) profileViewMount.style.display = 'block';
+
+            let targetUser = routeParam;
+            if (!targetUser) {
+                const currentUser = authStore.state.user;
+                if (currentUser) {
+                    targetUser = currentUser.username;
+                } else {
+                    window.location.hash = '#login';
+                    return;
+                }
+            }
+
+            if (profileView) {
+                await profileView.setUsername(targetUser);
+            }
+
+            if (mainViewTitle) {
+                mainViewTitle.textContent = `@${targetUser} Profile`;
+            }
+        } else if (primaryRoute === '#explore') {
+            // User Discovery / Explore Route
+            const exploreNavItem = document.querySelector('[data-nav="explore"]');
+            if (exploreNavItem) exploreNavItem.classList.add('active');
+
+            if (exploreViewMount) exploreViewMount.style.display = 'block';
+
+            if (mainViewTitle) {
+                mainViewTitle.textContent = 'Explore & Connect';
+            }
         } else {
-            // Home / Feed Route
+            // Default: Community Home Feed Route
             const homeNavItem = document.querySelector('[data-nav="home"]');
             if (homeNavItem) homeNavItem.classList.add('active');
 
-            if (authViewMount) authViewMount.style.display = 'none';
             if (homeViewContent) homeViewContent.style.display = 'flex';
 
             if (mainViewTitle) {
@@ -104,7 +172,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 sidebarUserMount.innerHTML = `
                     <div class="sidebar-user-action">
-                        <div style="display: flex; align-items: center; gap: var(--space-3); min-width: 0;">
+                        <a href="#profile/${encodeURIComponent(user.username)}" style="display: flex; align-items: center; gap: var(--space-3); min-width: 0; text-decoration: none; color: inherit; flex: 1;">
                             <div class="user-avatar-mini" style="background: linear-gradient(135deg, var(--color-primary-violet) 0%, var(--color-midnight-navy) 100%); color: white;">
                                 ${initials}
                             </div>
@@ -112,7 +180,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                                 <span class="user-display-name" title="${user.display_name || user.username}">${user.display_name || user.username}</span>
                                 <span class="user-username">@${user.username}</span>
                             </div>
-                        </div>
+                        </a>
                         <button type="button" class="sidebar-logout-icon-btn" id="sidebar-logout-btn" title="Sign out" aria-label="Sign out">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
                         </button>
@@ -147,10 +215,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (headerAuthAction) {
             if (isAuthenticated && user) {
                 headerAuthAction.innerHTML = `
-                    <span class="text-xs font-semibold" style="color: #065F46; background: var(--color-success-light); padding: 4px 10px; border-radius: var(--radius-full); display: inline-flex; align-items: center; gap: 4px;">
+                    <a href="#profile/${encodeURIComponent(user.username)}" class="text-xs font-semibold" style="color: #065F46; background: var(--color-success-light); padding: 4px 10px; border-radius: var(--radius-full); display: inline-flex; align-items: center; gap: 4px; text-decoration: none;">
                         <span style="width: 6px; height: 6px; border-radius: 50%; background: #10B981;"></span>
                         @${user.username}
-                    </span>
+                    </a>
                     <button type="button" class="text-xs font-semibold" id="header-logout-btn" style="color: var(--color-text-muted); background: var(--color-porcelain); border: 1px solid var(--color-border-subtle); padding: 4px 12px; border-radius: var(--radius-full); cursor: pointer; transition: all 150ms;">
                         Sign Out
                     </button>
@@ -194,8 +262,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                 window.location.hash = '#login';
             } else if (target === 'profile') {
                 e.preventDefault();
-                // If authenticated, show session card, else prompt login
-                window.location.hash = '#auth';
+                if (authStore.state.isAuthenticated && authStore.state.user) {
+                    window.location.hash = `#profile/${authStore.state.user.username}`;
+                } else {
+                    window.location.hash = '#login';
+                }
+            } else if (target === 'explore') {
+                e.preventDefault();
+                window.location.hash = '#explore';
             } else if (target === 'home') {
                 e.preventDefault();
                 window.location.hash = '#feed';

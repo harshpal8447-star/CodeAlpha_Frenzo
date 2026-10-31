@@ -51,6 +51,37 @@ const authenticate = (req, res, next) => {
     }
 };
 
+/**
+ * Optional Authentication Middleware
+ * Populates req.user if a valid access token is present, but permits unauthenticated access.
+ */
+const optionalAuthenticate = (req, res, next) => {
+    let token = req.cookies[COOKIE_NAMES.ACCESS_TOKEN];
+
+    if (!token && req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
+        token = req.headers.authorization.split(' ')[1];
+    }
+
+    if (!token) {
+        req.user = null;
+        return next();
+    }
+
+    try {
+        const decoded = verifyAccessToken(token);
+        req.user = {
+            id: decoded.sub,
+            email: decoded.email,
+            username: decoded.username
+        };
+    } catch {
+        // Token is invalid or expired; treat request as unauthenticated guest
+        req.user = null;
+    }
+    next();
+};
+
 module.exports = {
-    authenticate
+    authenticate,
+    optionalAuthenticate
 };

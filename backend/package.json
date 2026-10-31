@@ -12,7 +12,8 @@
     "db:check": "node src/db/verifyConnection.js",
     "test:auth": "node tests/auth.test.js",
     "test:frontend": "node tests/frontendAuth.test.js",
-    "test": "node tests/auth.test.js && node tests/frontendAuth.test.js"
+    "test:social": "node tests/socialProfile.test.js",
+    "test": "node tests/auth.test.js && node tests/frontendAuth.test.js && node tests/socialProfile.test.js"
   },
   "keywords": [
     "frenzo",
