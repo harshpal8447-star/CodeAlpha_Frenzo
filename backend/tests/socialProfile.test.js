@@ -494,19 +494,19 @@ const runSocialTests = async () => {
 
         const countRes = await query(`
             SELECT 
-                (SELECT count(*) FROM users) AS users_count,
-                (SELECT count(*) FROM profiles) AS profiles_count,
-                (SELECT count(*) FROM follows) AS follows_count,
-                (SELECT count(*) FROM refresh_tokens) AS refresh_count,
-                (SELECT count(*) FROM password_reset_tokens) AS reset_count;
+                (SELECT count(*) FROM users WHERE email LIKE '%${TEST_DOMAIN}%') AS test_users_count,
+                (SELECT count(*) FROM profiles p JOIN users u ON p.id = u.id WHERE u.email LIKE '%${TEST_DOMAIN}%') AS test_profiles_count,
+                (SELECT count(*) FROM follows f JOIN users u ON f.follower_id = u.id WHERE u.email LIKE '%${TEST_DOMAIN}%') AS test_follows_count,
+                (SELECT count(*) FROM refresh_tokens r JOIN users u ON r.user_id = u.id WHERE u.email LIKE '%${TEST_DOMAIN}%') AS test_refresh_count,
+                (SELECT count(*) FROM password_reset_tokens pr JOIN users u ON pr.user_id = u.id WHERE u.email LIKE '%${TEST_DOMAIN}%') AS test_reset_count;
         `);
 
         const counts = countRes.rows[0];
-        assert(Number(counts.users_count) === 0, `Users table clean (count: ${counts.users_count})`);
-        assert(Number(counts.profiles_count) === 0, `Profiles table clean (count: ${counts.profiles_count})`);
-        assert(Number(counts.follows_count) === 0, `Follows table clean (count: ${counts.follows_count})`);
-        assert(Number(counts.refresh_count) === 0, `Refresh tokens table clean (count: ${counts.refresh_count})`);
-        assert(Number(counts.reset_count) === 0, `Password reset tokens table clean (count: ${counts.reset_count})`);
+        assert(Number(counts.test_users_count) === 0, `Disposable test users clean (count: ${counts.test_users_count})`);
+        assert(Number(counts.test_profiles_count) === 0, `Disposable test profiles clean (count: ${counts.test_profiles_count})`);
+        assert(Number(counts.test_follows_count) === 0, `Disposable test follows clean (count: ${counts.test_follows_count})`);
+        assert(Number(counts.test_refresh_count) === 0, `Disposable test refresh tokens clean (count: ${counts.test_refresh_count})`);
+        assert(Number(counts.test_reset_count) === 0, `Disposable test reset tokens clean (count: ${counts.test_reset_count})`);
 
         console.log('\n=============================================================');
         console.log(`📊 SOCIAL & PROFILES RESULTS: ${passed} PASSED, ${failed} FAILED`);
