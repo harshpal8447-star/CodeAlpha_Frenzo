@@ -1,0 +1,484 @@
+/**
+ * Frenzo Posts UI Component Styles (Phase 3.3.4)
+ * Premium, minimal social feed aesthetic adhering to Frenzo design tokens.
+ */
+
+.posts-section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    width: 100%;
+}
+
+/* ==========================================================================
+   1. Post Composer
+   ========================================================================== */
+
+.composer-card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border-subtle);
+    border-radius: var(--radius-xl);
+    padding: var(--space-4) var(--space-5);
+    box-shadow: 0 4px 16px rgba(15, 23, 42, 0.04);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    animation: fadeIn 200ms ease-out;
+}
+
+.composer-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+}
+
+.composer-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: var(--radius-full);
+    background: linear-gradient(135deg, var(--color-primary-violet) 0%, var(--color-midnight-navy) 100%);
+    color: white;
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-bold);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    user-select: none;
+    flex-shrink: 0;
+}
+
+.composer-prompt-text {
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text-main);
+}
+
+.composer-textarea {
+    width: 100%;
+    min-height: 84px;
+    max-height: 300px;
+    padding: 12px 14px;
+    border: 1px solid var(--color-border-subtle);
+    border-radius: var(--radius-lg);
+    background: var(--color-porcelain);
+    color: var(--color-text-main);
+    font-family: inherit;
+    font-size: var(--font-size-base);
+    line-height: 1.55;
+    resize: vertical;
+    transition: all var(--transition-fast);
+}
+
+.composer-textarea:focus {
+    outline: none;
+    background: var(--color-surface);
+    border-color: var(--color-primary-violet);
+    box-shadow: 0 0 0 3px var(--color-primary-violet-glow);
+}
+
+.composer-textarea::placeholder {
+    color: var(--color-text-muted);
+}
+
+.composer-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    padding-top: var(--space-1);
+}
+
+.composer-char-count {
+    font-size: var(--font-size-xs);
+    color: var(--color-text-muted);
+    font-weight: var(--font-weight-medium);
+}
+
+.composer-char-count.char-warning {
+    color: var(--color-warning);
+    font-weight: var(--font-weight-bold);
+}
+
+.composer-char-count.char-exceeded {
+    color: var(--color-danger);
+    font-weight: var(--font-weight-bold);
+}
+
+.composer-error {
+    font-size: var(--font-size-xs);
+    color: var(--color-danger);
+    background: var(--color-danger-light);
+    border: 1px solid #FCA5A5;
+    border-radius: var(--radius-md);
+    padding: 6px 12px;
+}
+
+.btn-publish {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    padding: 8px 20px;
+    background: var(--color-primary-violet);
+    color: white;
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-semibold);
+    border: 1px solid transparent;
+    border-radius: var(--radius-full);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.btn-publish:hover:not(:disabled) {
+    background: var(--color-primary-violet-hover);
+    transform: translateY(-1px);
+}
+
+.btn-publish:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* ==========================================================================
+   2. Post Timeline & Stream
+   ========================================================================== */
+
+.timeline-stream {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+}
+
+.post-card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border-subtle);
+    border-radius: var(--radius-xl);
+    padding: var(--space-4) var(--space-5);
+    box-shadow: 0 2px 10px rgba(15, 23, 42, 0.03);
+    display: flex;
+    flex-direction: column;
+    transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+    animation: fadeIn 200ms ease-out;
+}
+
+.post-card:hover {
+    border-color: #CBD5E1;
+    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.05);
+}
+
+.post-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: var(--space-3);
+}
+
+.post-author-link {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    text-decoration: none;
+    color: inherit;
+    min-width: 0;
+}
+
+.post-author-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: var(--radius-full);
+    background: linear-gradient(135deg, var(--color-primary-violet) 0%, var(--color-midnight-navy) 100%);
+    color: white;
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-bold);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    user-select: none;
+    flex-shrink: 0;
+}
+
+.post-author-meta {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.post-author-name-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.post-author-display {
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-bold);
+    color: var(--color-text-main);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.post-author-handle {
+    font-size: var(--font-size-xs);
+    color: var(--color-text-muted);
+}
+
+.post-time-meta {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: var(--font-size-xs);
+    color: var(--color-text-muted);
+}
+
+.post-edited-indicator {
+    font-size: 11px;
+    color: var(--color-text-subtle);
+    font-style: italic;
+}
+
+/* Post Action Controls */
+.post-actions-group {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.post-action-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 5px 10px;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: var(--radius-md);
+    color: var(--color-text-muted);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-medium);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.post-action-btn:hover {
+    background: var(--color-porcelain);
+    color: var(--color-midnight-navy);
+    border-color: var(--color-border-subtle);
+}
+
+.post-action-btn-danger:hover {
+    background: var(--color-danger-light);
+    color: var(--color-danger);
+    border-color: #FCA5A5;
+}
+
+/* Post Content Body */
+.post-body {
+    margin-top: var(--space-3);
+    padding-left: 52px; /* Aligns with text beside 40px avatar + 12px gap */
+}
+
+.post-content-text {
+    font-size: var(--font-size-base);
+    color: var(--color-midnight-navy);
+    line-height: 1.62;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+/* ==========================================================================
+   3. Inline Post Editing
+   ========================================================================== */
+
+.post-edit-container {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    padding-top: var(--space-2);
+}
+
+.edit-textarea {
+    width: 100%;
+    min-height: 90px;
+    padding: 10px 12px;
+    border: 1px solid var(--color-primary-violet);
+    border-radius: var(--radius-lg);
+    background: var(--color-surface);
+    color: var(--color-text-main);
+    font-family: inherit;
+    font-size: var(--font-size-base);
+    line-height: 1.55;
+    resize: vertical;
+    box-shadow: 0 0 0 3px var(--color-primary-violet-glow);
+}
+
+.edit-actions-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+}
+
+.edit-btn-group {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+/* ==========================================================================
+   4. Post Deletion Confirmation
+   ========================================================================== */
+
+.delete-confirm-box {
+    margin-top: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    background: #FFF1F2;
+    border: 1px solid #FECDD3;
+    border-radius: var(--radius-lg);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+    animation: fadeIn 150ms ease-out;
+}
+
+.delete-confirm-text {
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-medium);
+    color: #9F1239;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.delete-btn-group {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+.btn-delete-confirm {
+    background: var(--color-danger);
+    color: white;
+    border: 1px solid transparent;
+    border-radius: var(--radius-full);
+    padding: 5px 14px;
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-semibold);
+    cursor: pointer;
+    transition: background var(--transition-fast);
+}
+
+.btn-delete-confirm:hover:not(:disabled) {
+    background: #DC2626;
+}
+
+/* ==========================================================================
+   5. Loading Skeletons & Empty States
+   ========================================================================== */
+
+.post-skeleton {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border-subtle);
+    border-radius: var(--radius-xl);
+    padding: var(--space-5);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+}
+
+.skeleton-shimmer {
+    background: linear-gradient(90deg, #F1F5F9 25%, #E2E8F0 50%, #F1F5F9 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+    border-radius: var(--radius-md);
+}
+
+@keyframes shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+.skeleton-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+}
+
+.skeleton-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: var(--radius-full);
+}
+
+.skeleton-text-line {
+    height: 14px;
+    width: 140px;
+}
+
+.skeleton-body-line {
+    height: 16px;
+    width: 85%;
+    margin-left: 52px;
+}
+
+.skeleton-body-line-short {
+    height: 16px;
+    width: 55%;
+    margin-left: 52px;
+}
+
+/* Pagination Load More Button */
+.pagination-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-3) 0;
+}
+
+.btn-load-more {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    padding: 10px 24px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border-subtle);
+    border-radius: var(--radius-full);
+    color: var(--color-text-main);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-semibold);
+    cursor: pointer;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+    transition: all var(--transition-fast);
+}
+
+.btn-load-more:hover:not(:disabled) {
+    background: var(--color-porcelain);
+    border-color: #CBD5E1;
+    transform: translateY(-1px);
+}
+
+.btn-load-more:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+    .post-body {
+        padding-left: 0;
+    }
+    .skeleton-body-line,
+    .skeleton-body-line-short {
+        margin-left: 0;
+    }
+    .composer-card,
+    .post-card {
+        padding: var(--space-3) var(--space-4);
+        border-radius: var(--radius-lg);
+    }
+}
